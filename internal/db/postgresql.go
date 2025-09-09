@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"stock-bot/config"
+	"stock-bot/internal/db/models"
 
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
@@ -45,7 +46,15 @@ func connectDB(cfg *config.Config) {
 }
 
 func createOrUpdateTable() {
-	err := db.AutoMigrate()
+	err := db.AutoMigrate(
+		&models.User{},
+		&models.Feature{},
+		&models.Symbols{},
+		&models.Subscription{},
+		&models.SubscriptionSymbol{},
+		&models.Watchlist{},
+		&models.WatchlistItem{},
+	)
 	if err != nil {
 		panic(fmt.Sprintf("資料表遷移失敗: %v", err))
 	}
