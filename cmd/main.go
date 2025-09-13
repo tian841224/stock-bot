@@ -13,6 +13,7 @@ import (
 	"stock-bot/internal/api/linebot"
 	"stock-bot/internal/api/tgbot"
 	"stock-bot/internal/db"
+	"stock-bot/internal/infrastructure/finmindtrade"
 	linebotInfra "stock-bot/internal/infrastructure/linebot"
 	tgbotInfra "stock-bot/internal/infrastructure/tgbot"
 	lineService "stock-bot/internal/service/bot/line"
@@ -68,6 +69,9 @@ func main() {
 	tgHandler := tgbot.NewTgHandler(cfg, tgSvc)
 	tgbot.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
 
+	// 初始化 Finmind Trade API
+	finmindtrade.Init(*cfg)
+
 	// 從環境變數讀取埠號，預設 8080
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -94,7 +98,7 @@ func main() {
 	logger.Log.Info("HTTP 伺服器啟動成功")
 	logger.Log.Info("程式執行中...")
 
-	// 等待終止訊號或啟動錯誤
+	// 等待終止訊號或啟動錯誤56
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 

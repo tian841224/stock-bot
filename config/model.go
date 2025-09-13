@@ -17,4 +17,6 @@ type Config struct {
 	TELEGRAM_BOT_WEBHOOK_DOMAIN string `mapstructure:"TELEGRAM_BOT_WEBHOOK_DOMAIN"`
 	TELEGRAM_BOT_WEBHOOK_PATH   string `mapstructure:"TELEGRAM_BOT_WEBHOOK_PATH"`
 	TELEGRAM_BOT_SECRET_TOKEN   string `mapstructure:"TELEGRAM_BOT_SECRET_TOKEN"`
+	// Finmind Trade
+	FINMIND_TOKEN string `mapstructure:"FINMIND_TOKEN"`
 }
