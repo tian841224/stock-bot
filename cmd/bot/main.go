@@ -20,6 +20,7 @@ import (
 	twseInfra "stock-bot/internal/infrastructure/twse"
 	lineService "stock-bot/internal/service/bot/line"
 	tgService "stock-bot/internal/service/bot/tg"
+	twseService "stock-bot/internal/service/twse"
 	"stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -71,12 +72,14 @@ func main() {
 	tgHandler := tgbot.NewTgHandler(cfg, tgSvc)
 	tgbot.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
 
-	// 初始化 Finmind Trade API
-	finmindtrade.Init(*cfg)
+	// 初始化 Finmind Trade API (預留給未來功能使用)
+	finmindClient := finmindtrade.NewFinmindTradeAPI(*cfg)
+	_ = finmindClient // 暫時避免 unused variable 錯誤
 
 	// 初始化 TWSE API 並註冊路由
 	twseAPI := twseInfra.NewTwseAPI()
-	twseHandler := twse.NewTwseHandler(twseAPI)
+	twseService := twseService.NewTwseService(twseAPI)
+	twseHandler := twse.NewTwseHandler(twseService)
 	twse.RegisterRoutes(router, twseHandler)
 
 	// 從環境變數讀取埠號，預設 8080
