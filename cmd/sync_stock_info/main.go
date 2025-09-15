@@ -79,11 +79,16 @@ func runBackgroundSync(ctx context.Context, stockSyncService *stock_sync.StockSy
 	logger.Log.Info("執行初始同步...")
 	if err := stockSyncService.SyncTaiwanStockInfo(); err != nil {
 		logger.Log.Error("初始同步失敗", zap.Error(err))
-	} else {
-		// 顯示同步統計
-		if stats, err := stockSyncService.GetSyncStats(); err == nil {
-			logger.Log.Info("初始同步統計", zap.Any("stats", stats))
-		}
+	}
+	logger.Log.Info("台股同步完成")
+	if err := stockSyncService.SyncUSStockInfo(); err != nil {
+		logger.Log.Error("初始同步失敗", zap.Error(err))
+	}
+	logger.Log.Info("美股同步完成")
+
+	// 顯示同步統計
+	if stats, err := stockSyncService.GetSyncStats(); err == nil {
+		logger.Log.Info("初始同步統計", zap.Any("stats", stats))
 	}
 
 	// 建立定時器
@@ -98,13 +103,20 @@ func runBackgroundSync(ctx context.Context, stockSyncService *stock_sync.StockSy
 		case <-ticker.C:
 			logger.Log.Info("開始定時同步...")
 			if err := stockSyncService.SyncTaiwanStockInfo(); err != nil {
-				logger.Log.Error("定時同步失敗", zap.Error(err))
-			} else {
-				// 顯示同步統計
-				if stats, err := stockSyncService.GetSyncStats(); err == nil {
-					logger.Log.Info("定時同步統計", zap.Any("stats", stats))
-				}
+				logger.Log.Error("初始同步失敗", zap.Error(err))
 			}
+			logger.Log.Info("台股同步完成")
+			if err := stockSyncService.SyncUSStockInfo(); err != nil {
+				logger.Log.Error("初始同步失敗", zap.Error(err))
+			}
+			logger.Log.Info("美股同步完成")
+
+			// 顯示同步統計
+			if stats, err := stockSyncService.GetSyncStats(); err == nil {
+				logger.Log.Info("初始同步統計", zap.Any("stats", stats))
+			}
+			
+
 		}
 	}
 }
