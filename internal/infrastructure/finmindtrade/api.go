@@ -9,18 +9,27 @@ import (
 	"time"
 )
 
+// FinmindTradeAPIInterface 定義 FinmindTrade API 的介面
+type FinmindTradeAPIInterface interface {
+	GetTaiwanStockInfo(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockInfoResponseDto, error)
+	GetTaiwanStockPrice(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockPriceResponseDto, error)
+	GetTaiwanExchangeRate(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanExchangeRateResponseDto, error)
+	GetTaiwanStockDividend(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockDividendResponseDto, error)
+	GetTaiwanStockFinancialStatements(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockFinancialStatementsResponseDto, error)
+	GetTaiwanStockMonthRevenue(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockMonthRevenueResponseDto, error)
+	GetTaiwanStockTradingDate(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockTradingDateResponseDto, error)
+	GetTaiwanVariousIndicators(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanVariousIndicatorsResponseDto, error)
+	GetUSStockInfo() (dto.USStockInfoResponseDto, error)
+	GetUSStockPrice(requestDto dto.FinmindtradeRequestDto) (dto.USStockPriceResponseDto, error)
+	GetTodayInfo() (dto.TodayInfoResponseDto, error)
+	GetTaiwanStockAnalysis(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockAnalysisResponseDto, error)
+	GetTaiwanStockAnalysisPlot(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockAnalysisPlotResponseDto, error)
+}
+
 type FinmindTradeAPI struct {
 	baseURL    string
 	httpHeader http.Header
 	client     *http.Client
-}
-
-// Client 提供全域可用的 FinmindTradeAPI 單例
-var Client *FinmindTradeAPI
-
-// Init 於應用程式啟動時初始化單例 Client
-func Init(cfg config.Config) {
-	Client = NewFinmindTradeAPI(cfg)
 }
 
 func NewFinmindTradeAPI(cfg config.Config) *FinmindTradeAPI {
