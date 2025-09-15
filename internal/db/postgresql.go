@@ -15,6 +15,11 @@ import (
 
 var db *gorm.DB
 
+// GetDB 回傳資料庫連線實例
+func GetDB() *gorm.DB {
+	return db
+}
+
 func InitDB(cfg *config.Config) error {
 	if err := createDatabaseIfNotExists(cfg); err != nil {
 		return err
