@@ -2,23 +2,23 @@ package tg
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"stock-bot/internal/repository"
-	"stock-bot/internal/service/stock"
+	"stock-bot/internal/service/twstock"
+	stockDto "stock-bot/internal/service/twstock/dto"
 	"stock-bot/pkg/logger"
 
 	"go.uber.org/zap"
 )
 
 type TgService struct {
-	stockService         *stock.StockService
+	stockService         *twstock.StockService
 	userSubscriptionRepo repository.UserSubscriptionRepository
 }
 
 func NewTgService(
-	stockService *stock.StockService,
+	stockService *twstock.StockService,
 	userSubscriptionRepo repository.UserSubscriptionRepository,
 ) *TgService {
 	return &TgService{
@@ -97,36 +97,24 @@ func (s *TgService) GetStockKlineImage(symbol, timeRange string) ([]byte, string
 }
 
 // GetStockPerformance 取得股票績效
-func (s *TgService) GetStockPerformance(symbol string) ([]byte, string, error) {
+func (s *TgService) GetStockPerformance(symbol string) (string, error) {
 	// 驗證股票代號並取得基本資訊
 	valid, stockName, err := s.stockService.ValidateStockID(symbol)
 	if err != nil || !valid {
-		return nil, "", fmt.Errorf("查無此股票代號，請重新確認")
+		return "", fmt.Errorf("查無此股票代號，請重新確認")
 	}
 
 	// 取得績效
 	performanceData, err := s.stockService.GetStockPerformance(symbol)
 	if err != nil {
-		logger.Log.Error("取得股票績效圖表失敗", zap.Error(err))
-		return nil, "", fmt.Errorf("取得績效資料失敗，請稍後再試")
+		logger.Log.Error("取得股票績效失敗", zap.Error(err))
+		return "", fmt.Errorf("取得績效資料失敗，請稍後再試")
 	}
 
-	// 格式化績效資料
-	var result strings.Builder
+	// 格式化績效資料為文字表格
+	formattedText := s.formatPerformanceTable(stockName, symbol, performanceData)
 
-	// 標題
-	result.WriteString(fmt.Sprintf("績效表現　✨ %s(%s) ", stockName, symbol))
-	result.WriteString("－－－\n")
-
-	// 遍歷每個期間的績效資料
-	for _, data := range performanceData.Data {
-		result.WriteString(fmt.Sprintf("期間：%s\n", data.PeriodName))
-		result.WriteString(fmt.Sprintf("績效：%s\n\n", data.Performance))
-	}
-
-	caption := result.String()
-
-	return nil, caption, nil
+	return formattedText, nil
 }
 
 // GetStockNews 取得股票新聞
@@ -366,4 +354,28 @@ func (s *TgService) GetDailyMarketInfoFormatted(count int) (string, error) {
 	}
 
 	return messageText, nil
+}
+
+// formatPerformanceTable 格式化股票績效為HTML表格
+func (s *TgService) formatPerformanceTable(stockName, symbol string, performanceData *stockDto.StockPerformanceResponseDto) string {
+
+	// 使用 <pre> 標籤來保持格式對齊，並加上邊框效果
+	result := "<pre>"
+	result += fmt.Sprintf("<b>%s(%s) 績效表現 ✨</b>", stockName, symbol)
+	result += "┌─────────┬─────────────┐\n"
+	result += "│ Period  │ Performance │\n"
+	result += "├─────────┼─────────────┤\n"
+
+	// 加入每行資料
+	for _, data := range performanceData.Data {
+		// 確保中文字元對齊，使用固定寬度格式
+		periodFormatted := fmt.Sprintf("%-7s", data.Period)
+		performanceFormatted := fmt.Sprintf("%-11s", data.Performance)
+		result += fmt.Sprintf("│ %s │ %s │\n", periodFormatted, performanceFormatted)
+	}
+
+	result += "└─────────┴─────────────┘"
+	result += "</pre>"
+
+	return result
 }

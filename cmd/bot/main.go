@@ -22,8 +22,7 @@ import (
 	"stock-bot/internal/repository"
 	lineService "stock-bot/internal/service/bot/line"
 	tgService "stock-bot/internal/service/bot/tg"
-	"stock-bot/internal/service/stock"
-	twseService "stock-bot/internal/service/twse"
+	twstockService "stock-bot/internal/service/twstock"
 	"stock-bot/internal/service/user"
 	"stock-bot/pkg/logger"
 
@@ -61,7 +60,7 @@ func main() {
 
 	// 初始化服務
 	userService := user.NewUserService(userRepo)
-	stockService := stock.NewStockService(finmindClient, twseAPI, symbolsRepo)
+	stockService := twstockService.NewStockService(finmindClient, twseAPI, symbolsRepo)
 
 	// 建立 Gin 引擎與註冊路由
 	router := gin.Default()
@@ -94,8 +93,7 @@ func main() {
 	tgbot.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
 
 	// 初始化 TWSE API 並註冊路由
-	twseService := twseService.NewTwseService(twseAPI)
-	twseHandler := twse.NewTwseHandler(twseService)
+	twseHandler := twse.NewTwseHandler(stockService)
 	twse.RegisterRoutes(router, twseHandler)
 
 	// 從環境變數讀取埠號，預設 8080
@@ -124,7 +122,7 @@ func main() {
 	logger.Log.Info("HTTP 伺服器啟動成功")
 	logger.Log.Info("程式執行中...")
 
-	// 等待終止訊號或啟動錯誤56
+	// 等待終止訊號或啟動錯誤
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 

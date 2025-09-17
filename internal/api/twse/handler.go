@@ -1,18 +1,18 @@
 package twse
 
 import (
-	twseService "stock-bot/internal/service/twse"
+	twstockService "stock-bot/internal/service/twstock"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 type TwseHandler struct {
-	twseService *twseService.TwseService
+	twstockService *twstockService.StockService
 }
 
-func NewTwseHandler(twseService *twseService.TwseService) *TwseHandler {
-	return &TwseHandler{twseService: twseService}
+func NewTwseHandler(twstockService *twstockService.StockService) *TwseHandler {
+	return &TwseHandler{twstockService: twstockService}
 }
 
 func (h *TwseHandler) GetDailyMarketInfo(count *int, c *gin.Context) {
@@ -29,7 +29,7 @@ func (h *TwseHandler) GetDailyMarketInfo(count *int, c *gin.Context) {
 		}
 	}
 
-	dailyMarketData, err := h.twseService.GetDailyMarketInfo(actualCount)
+	dailyMarketData, err := h.twstockService.GetDailyMarketInfo(actualCount)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -45,7 +45,7 @@ func (h *TwseHandler) GetAfterTradingVolume(c *gin.Context) {
 	symbol := c.Query("symbol")
 	date := c.Query("date")
 
-	result, err := h.twseService.GetAfterTradingVolume(symbol, date)
+	result, err := h.twstockService.GetAfterTradingVolume(symbol, date)
 	if err != nil {
 		// 根據錯誤類型回傳不同的 HTTP 狀態碼
 		if err.Error() == "symbol 為必填參數" {
@@ -65,7 +65,7 @@ func (h *TwseHandler) GetAfterTradingVolume(c *gin.Context) {
 
 // GetTopVolumeItems 成交量前 20 股票
 func (h *TwseHandler) GetTopVolumeItems(c *gin.Context) {
-	result, err := h.twseService.GetTopVolumeItems()
+	result, err := h.twstockService.GetTopVolumeItems()
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return

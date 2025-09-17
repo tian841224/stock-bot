@@ -1,24 +1,30 @@
-package stock
+package twstock
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"stock-bot/internal/infrastructure/finmindtrade"
 	"stock-bot/internal/infrastructure/finmindtrade/dto"
 	"stock-bot/internal/infrastructure/twse"
+	twseDto "stock-bot/internal/infrastructure/twse/dto"
 	"stock-bot/internal/repository"
+	stockDto "stock-bot/internal/service/twstock/dto"
 	"stock-bot/pkg/logger"
-	"strconv"
-	"time"
 
 	"go.uber.org/zap"
 )
 
+// StockService 股票服務
 type StockService struct {
 	finmindClient finmindtrade.FinmindTradeAPIInterface
 	twseAPI       *twse.TwseAPI
 	symbolsRepo   repository.SymbolRepository
 }
 
+// NewStockService 建立股票服務實例
 func NewStockService(
 	finmindClient finmindtrade.FinmindTradeAPIInterface,
 	twseAPI *twse.TwseAPI,
@@ -30,6 +36,8 @@ func NewStockService(
 		symbolsRepo:   symbolsRepo,
 	}
 }
+
+// ========== 資料結構定義 ==========
 
 // StockPriceInfo 股票價格資訊
 type StockPriceInfo struct {
@@ -64,6 +72,8 @@ type NewsInfo struct {
 	Link  string `json:"link"`
 	Date  string `json:"date"`
 }
+
+// ========== 股票價格相關方法 ==========
 
 // GetStockPrice 取得股票價格資訊
 func (s *StockService) GetStockPrice(stockID string, date ...string) (*StockPriceInfo, error) {
@@ -130,6 +140,132 @@ func (s *StockService) GetStockPrice(stockID string, date ...string) (*StockPric
 		ChangeAmount:     changeAmount,
 		PercentageChange: percentageChange,
 		UpDownSign:       upDownSign,
+	}, nil
+}
+
+// ========== 股票績效分析方法 ==========
+
+// GetStockPerformance 取得股票績效
+func (s *StockService) GetStockPerformance(stockID string) (*stockDto.StockPerformanceResponseDto, error) {
+	logger.Log.Info("取得股票績效", zap.String("stockID", stockID))
+
+	// 取得股票名稱
+	symbol, err := s.symbolsRepo.GetBySymbolAndMarket(stockID, "TW")
+	if err != nil || symbol == nil {
+		logger.Log.Error("取得股票名稱失敗", zap.Error(err))
+		return nil, fmt.Errorf("查無股票名稱")
+	}
+
+	// 定義要查詢的期間
+	periods := []struct {
+		period     string
+		periodName string
+		startDate  func(now time.Time) time.Time
+	}{
+		{"YTD", "今年至今", func(now time.Time) time.Time {
+			return time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		}},
+		{"1M", "一個月", func(now time.Time) time.Time {
+			return now.AddDate(0, -1, 0)
+		}},
+		{"6M", "半年", func(now time.Time) time.Time {
+			return now.AddDate(0, -6, 0)
+		}},
+		{"1Y", "一年", func(now time.Time) time.Time {
+			return now.AddDate(-1, 0, 0)
+		}},
+		{"3Y", "三年", func(now time.Time) time.Time {
+			return now.AddDate(-3, 0, 0)
+		}},
+		{"5Y", "五年", func(now time.Time) time.Time {
+			return now.AddDate(-5, 0, 0)
+		}},
+		{"10Y", "十年", func(now time.Time) time.Time {
+			return now.AddDate(-10, 0, 0)
+		}},
+	}
+
+	var performancePeriods []stockDto.StockPerformanceData
+	now := time.Now()
+
+	// 取得分割資料
+	splitRequestDto := dto.FinmindtradeRequestDto{
+		DataID:    stockID,
+		StartDate: "1900-01-01",
+	}
+
+	splitResponse, err := s.finmindClient.GetTaiwanStockSplitPrice(splitRequestDto)
+	if err != nil {
+		logger.Log.Error("取得分割資料失敗", zap.Error(err))
+		return nil, err
+	}
+
+	for _, p := range periods {
+		// 計算起始日期
+		startDate := p.startDate(now)
+
+		// 判斷是否有分割
+		hasSplit := len(splitResponse.Data) > 0
+
+		// 取得起始期間的股價
+		startRequestDto := dto.FinmindtradeRequestDto{
+			DataID:    stockID,
+			StartDate: startDate.Format("2006-01-02"),
+		}
+
+		startResponse, err := s.finmindClient.GetTaiwanStockPrice(startRequestDto)
+		if err != nil {
+			logger.Log.Error("取得起始股價失敗", zap.Error(err))
+			continue
+		}
+
+		// 檢查是否有資料
+		if startResponse.Status != 200 || len(startResponse.Data) == 0 {
+			continue
+		}
+
+		// 取得第一天和最後一天價格
+		startPrice := startResponse.Data[0].Close
+		endPrice := startResponse.Data[len(startResponse.Data)-1].Close
+
+		// 計算分割後的股價
+		if hasSplit {
+			for _, split := range splitResponse.Data {
+				// 解析分割日期
+				splitDate, err := time.Parse("2006-01-02", split.Date)
+				if err != nil {
+					logger.Log.Error("解析分割日期失敗", zap.String("date", split.Date), zap.Error(err))
+					continue
+				}
+
+				// 判斷分割日期是否在起始日期之前
+				if splitDate.After(startDate) {
+					// 計算分割比例
+					splitRatio := split.AfterPrice / split.BeforePrice
+					startPrice = startPrice * splitRatio
+				}
+			}
+		}
+
+		// 計算績效
+		changeAmount := endPrice - startPrice
+		percentageChange := fmt.Sprintf("%.2f%%", (changeAmount/startPrice)*100)
+
+		periodData := stockDto.StockPerformanceData{
+			Period:      p.period,
+			PeriodName:  p.periodName,
+			Performance: percentageChange,
+		}
+
+		performancePeriods = append(performancePeriods, periodData)
+	}
+
+	if len(performancePeriods) == 0 {
+		return nil, fmt.Errorf("查無績效資料")
+	}
+
+	return &stockDto.StockPerformanceResponseDto{
+		Data: performancePeriods,
 	}, nil
 }
 
@@ -245,6 +381,62 @@ func (s *StockService) GetTopVolumeItems() ([]*StockPriceInfo, error) {
 	return result, nil
 }
 
+// GetAfterTradingVolume 取得盤後資訊
+func (s *StockService) GetAfterTradingVolume(symbol, date string) (*twseDto.AfterTradingVolumeResponseDto, error) {
+	if strings.TrimSpace(symbol) == "" {
+		return nil, fmt.Errorf("symbol 為必填參數")
+	}
+
+	response, err := s.twseAPI.GetAfterTradingVolume(symbol, date)
+	if err != nil {
+		return nil, err
+	}
+
+	// 檢查資料結構
+	if len(response.Tables) <= 8 {
+		return nil, fmt.Errorf("查無資料或資料表結構異常")
+	}
+
+	stockList := response.Tables[8]
+	if len(stockList.Data) == 0 {
+		return nil, fmt.Errorf("查無資料")
+	}
+
+	// 第 9 個 table 為個股清單，篩選指定股票
+	for _, row := range stockList.Data {
+		if len(row) < 13 {
+			continue
+		}
+		if strings.TrimSpace(s.toString(row[0])) != strings.TrimSpace(symbol) {
+			continue
+		}
+
+		openPrice := s.toFloat(row[5])
+		changeAmount := s.toFloat(row[10])
+		percentage := s.percentageChange(changeAmount, openPrice)
+
+		result := &twseDto.AfterTradingVolumeResponseDto{
+			StockId:          s.toString(row[0]),
+			StockName:        s.toString(row[1]),
+			Volume:           s.toString(row[2]),
+			Transaction:      s.toString(row[3]),
+			Amount:           s.toString(row[4]),
+			OpenPrice:        openPrice,
+			ClosePrice:       s.toFloat(row[8]),
+			HighPrice:        s.toFloat(row[6]),
+			LowPrice:         s.toFloat(row[7]),
+			UpDownSign:       s.extractUpDownSign(s.toString(row[9])),
+			ChangeAmount:     changeAmount,
+			PercentageChange: percentage,
+		}
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("找不到指定股票: %s", symbol)
+}
+
+// ========== 股票分析相關方法 ==========
+
 // GetStockAnalysis 取得股票分析圖表
 func (s *StockService) GetStockAnalysis(stockID string) ([]byte, string, error) {
 	logger.Log.Info("取得股票分析", zap.String("stockID", stockID))
@@ -276,19 +468,66 @@ func (s *StockService) GetStockAnalysis(stockID string) ([]byte, string, error) 
 	return []byte{}, stockName, nil
 }
 
+// ========== 驗證相關方法 ==========
+
 // ValidateStockID 驗證股票代號是否存在
 func (s *StockService) ValidateStockID(stockID string) (bool, string, error) {
-	// 先從本地資料庫查詢
+	// 先從資料庫查詢
 	symbol, err := s.symbolsRepo.GetBySymbolAndMarket(stockID, "TW")
 	if err == nil && symbol != nil {
 		return true, symbol.Name, nil
 	}
 
-	// 如果本地找不到，嘗試從 API 查詢
-	_, err = s.GetStockPrice(stockID)
-	if err != nil {
-		return false, "", err
-	}
+	return false, "", nil
+}
 
-	return true, stockID, nil
+// ========== 輔助函數 ==========
+
+// toString 將 interface{} 轉換為字串
+func (s *StockService) toString(v interface{}) string {
+	str := fmt.Sprint(v)
+	str = strings.TrimSpace(str)
+	return str
+}
+
+// toFloat 將 interface{} 轉換為浮點數
+func (s *StockService) toFloat(v interface{}) float64 {
+	str := s.toString(v)
+	if str == "--" || str == "" {
+		return 0
+	}
+	str = strings.ReplaceAll(str, ",", "")
+	str = strings.ReplaceAll(str, "％", "")
+	if str == "+" || str == "-" {
+		return 0
+	}
+	var f float64
+	_, err := fmt.Sscan(str, &f)
+	if err != nil {
+		return 0
+	}
+	return f
+}
+
+// extractUpDownSign 提取漲跌符號
+func (s *StockService) extractUpDownSign(str string) string {
+	str = strings.TrimSpace(str)
+	if str == "" {
+		return ""
+	}
+	if strings.Contains(str, "+") || strings.Contains(str, "＋") {
+		return "+"
+	}
+	if strings.Contains(str, "-") || strings.Contains(str, "－") {
+		return "-"
+	}
+	return ""
+}
+
+// percentageChange 計算漲跌幅
+func (s *StockService) percentageChange(changeAmount, openPrice float64) string {
+	if openPrice == 0 {
+		return "0.00%"
+	}
+	return fmt.Sprintf("%.2f%%", (changeAmount/openPrice)*100)
 }

@@ -111,25 +111,13 @@ func (c *TgCommandHandler) CommandPerformance(userID int64, symbol string) error
 	}
 
 	// 取得績效資料
-	_, caption, err := c.tgService.GetStockPerformance(symbol)
+	performanceText, err := c.tgService.GetStockPerformance(symbol)
 	if err != nil {
 		return c.sendMessage(userID, err.Error())
 	}
 
-	// // 發送圖片
-	// photo := tgbotapi.NewPhoto(userID, tgbotapi.FileBytes{
-	// 	Name:  "performance.png",
-	// 	Bytes: imageData,
-	// })
-	// photo.Caption = caption
-
-	err = c.sendMessage(userID, caption)
-	if err != nil {
-		logger.Log.Error("發送圖片失敗", zap.Error(err))
-		return c.sendMessage(userID, caption)
-	}
-
-	return nil
+	// 發送HTML格式的表格訊息
+	return c.sendMessageHTML(userID, performanceText)
 }
 
 // CommandDetailPrice 處理 /d 命令 - 股票詳細價格資訊
