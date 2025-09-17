@@ -1,125 +1,323 @@
 package tg
 
 import (
-	"strconv"
+	"fmt"
 	"strings"
+	"time"
 
-	"stock-bot/internal/db/models"
 	"stock-bot/internal/repository"
 	"stock-bot/internal/service/stock"
-	"stock-bot/internal/service/user"
 	"stock-bot/pkg/logger"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.uber.org/zap"
 )
 
 type TgService struct {
-	botClient            *tgbotapi.BotAPI
 	stockService         *stock.StockService
-	userService          user.UserService
 	userSubscriptionRepo repository.UserSubscriptionRepository
-	subscriptionItemMap  map[string]models.SubscriptionItem
 }
 
 func NewTgService(
-	botClient *tgbotapi.BotAPI,
 	stockService *stock.StockService,
-	userService user.UserService,
 	userSubscriptionRepo repository.UserSubscriptionRepository,
 ) *TgService {
 	return &TgService{
-		botClient:            botClient,
 		stockService:         stockService,
-		userService:          userService,
 		userSubscriptionRepo: userSubscriptionRepo,
-		subscriptionItemMap:  models.SubscriptionItemMap,
 	}
 }
 
-func (s *TgService) HandleUpdate(update *tgbotapi.Update) error {
-	if update.Message == nil {
-		return nil
+// GetStockDetailInfo 取得股票詳細資訊並格式化
+func (s *TgService) GetStockDetailInfo(symbol string) (string, error) {
+	if symbol == "" {
+		return "", fmt.Errorf("股票代號不能為空")
 	}
 
-	return s.handleCommand(update.Message)
-}
-
-func (s *TgService) handleCommand(message *tgbotapi.Message) error {
-	if message.Text == "" {
-		return nil
-	}
-
-	userID := message.Chat.ID
-	messageText := message.Text
-
-	logger.Log.Info("收到 Telegram 訊息",
-		zap.Int64("user_id", userID),
-		zap.String("message", messageText))
-
-	// 確保使用者存在
-	_, err := s.userService.GetOrCreate(strconv.FormatInt(userID, 10), models.UserTypeTelegram)
+	// 取得股票價格資訊
+	stockInfo, err := s.stockService.GetStockPrice(symbol)
 	if err != nil {
-		logger.Log.Error("建立或取得使用者失敗", zap.Error(err))
-		return s.sendMessage(userID, "系統錯誤，請稍後再試")
+		logger.Log.Error("取得股票價格失敗", zap.Error(err))
+		return "", fmt.Errorf("查無此股票資料，請重新確認")
 	}
 
-	parts := strings.Fields(messageText)
-	if len(parts) == 0 {
-		return nil
+	// 建立詳細資訊訊息
+	emoji := ""
+	if stockInfo.UpDownSign == "+" {
+		emoji = "📈"
+	} else if stockInfo.UpDownSign == "-" {
+		emoji = "📉"
 	}
 
-	command := parts[0]
-	var arg1, arg2 string
-	if len(parts) > 1 {
-		arg1 = parts[1]
-	}
-	if len(parts) > 2 {
-		arg2 = parts[2]
+	message := fmt.Sprintf(`<b>%s</b>
+<b>─── %s (%s) %s ───</b>
+<code>開盤價：%.2f
+收盤價：%.2f
+漲跌幅：%s%.2f (%s)
+最高價：%.2f
+最低價：%.2f
+成交股數：%d
+成交筆數：%d</code>`,
+		stockInfo.Date,
+		stockInfo.StockName, stockInfo.StockID, emoji,
+		stockInfo.OpenPrice,
+		stockInfo.ClosePrice,
+		stockInfo.UpDownSign, stockInfo.ChangeAmount, stockInfo.PercentageChange,
+		stockInfo.HighPrice,
+		stockInfo.LowPrice,
+		stockInfo.Volume,
+		stockInfo.Transaction)
+
+	return message, nil
+}
+
+// GetStockKlineImage 取得股票 K 線圖
+func (s *TgService) GetStockKlineImage(symbol, timeRange string) ([]byte, string, string, error) {
+	if symbol == "" {
+		return nil, "", "", fmt.Errorf("請輸入股票代號")
 	}
 
-	switch command {
-	case "/start":
-		return s.handleStart(userID)
-	case "/k":
-		return s.handleKline(userID, arg1, arg2)
-	case "/p":
-		return s.handlePerformance(userID, arg1)
-	case "/d":
-		return s.handleDetailPrice(userID, arg1)
-	case "/n":
-		return s.handleNews(userID, arg1)
-	case "/yn":
-		return s.handleYahooNews(userID, arg1)
-	case "/m":
-		count := 1
-		if arg1 != "" {
-			if c, err := strconv.Atoi(arg1); err == nil {
-				count = c
+	// 驗證股票代號
+	valid, stockName, err := s.stockService.ValidateStockID(symbol)
+	if err != nil || !valid {
+		return nil, "", "", fmt.Errorf("查無此股票代號，請重新確認")
+	}
+
+	// 轉換時間範圍
+	timeRangeText := s.convertTimeRange(timeRange)
+
+	// 取得 K 線圖
+	imageData, _, err := s.stockService.GetStockAnalysis(symbol)
+	if err != nil {
+		logger.Log.Error("取得股票分析圖表失敗", zap.Error(err))
+		return nil, "", "", fmt.Errorf("取得 K 線圖失敗，請稍後再試")
+	}
+
+	caption := fmt.Sprintf("%s(%s) K線圖　💹", stockName, symbol)
+	return imageData, caption, timeRangeText, nil
+}
+
+// GetStockPerformance 取得股票績效
+func (s *TgService) GetStockPerformance(symbol string) ([]byte, string, error) {
+	// 驗證股票代號並取得基本資訊
+	valid, stockName, err := s.stockService.ValidateStockID(symbol)
+	if err != nil || !valid {
+		return nil, "", fmt.Errorf("查無此股票代號，請重新確認")
+	}
+
+	// 取得績效
+	performanceData, err := s.stockService.GetStockPerformance(symbol)
+	if err != nil {
+		logger.Log.Error("取得股票績效圖表失敗", zap.Error(err))
+		return nil, "", fmt.Errorf("取得績效資料失敗，請稍後再試")
+	}
+
+	// 格式化績效資料
+	var result strings.Builder
+
+	// 標題
+	result.WriteString(fmt.Sprintf("績效表現　✨ %s(%s) ", stockName, symbol))
+	result.WriteString("－－－\n")
+
+	// 遍歷每個期間的績效資料
+	for _, data := range performanceData.Data {
+		result.WriteString(fmt.Sprintf("期間：%s\n", data.PeriodName))
+		result.WriteString(fmt.Sprintf("績效：%s\n\n", data.Performance))
+	}
+
+	caption := result.String()
+
+	return nil, caption, nil
+}
+
+// GetStockNews 取得股票新聞
+func (s *TgService) GetStockNews(symbol string) (string, error) {
+	// 驗證股票代號
+	valid, stockName, err := s.stockService.ValidateStockID(symbol)
+	if err != nil || !valid {
+		return "", fmt.Errorf("查無此股票代號，請重新確認")
+	}
+
+	// 這裡需要實際的新聞服務，暫時返回模擬資料
+	message := fmt.Sprintf("⚡️%s(%s)-即時新聞\n\n暫無新聞資料，功能開發中...", stockName, symbol)
+	return message, nil
+}
+
+// GetYahooStockNews 取得 Yahoo 股票新聞
+func (s *TgService) GetYahooStockNews(symbol string) (string, error) {
+	// 這裡需要實際的 Yahoo 新聞服務，暫時返回模擬資料
+	message := fmt.Sprintf("⚡️%s-即時新聞\n\n暫無新聞資料，功能開發中...", symbol)
+	return message, nil
+}
+
+// GetTopVolumeItemsFormatted 取得格式化的交易量前20名
+func (s *TgService) GetTopVolumeItemsFormatted() (string, error) {
+	topItems, err := s.stockService.GetTopVolumeItems()
+	if err != nil {
+		logger.Log.Error("取得交易量前20名失敗", zap.Error(err))
+		return "", fmt.Errorf("查無資料，請確認後再試")
+	}
+
+	if len(topItems) == 0 {
+		return "", fmt.Errorf("查無資料，請確認後再試")
+	}
+
+	messageText := "🔝<b>今日交易量前二十</b>\n\n"
+
+	for _, item := range topItems {
+		emoji := ""
+		if item.UpDownSign == "+" {
+			emoji = "📈"
+		} else if item.UpDownSign == "-" {
+			emoji = "📉"
+		}
+
+		messageText += fmt.Sprintf("%s<b>%s (%s)</b>\n<code>", emoji, item.StockName, item.StockID)
+		messageText += fmt.Sprintf("成交股數：%d\n", item.Volume)
+		messageText += fmt.Sprintf("成交筆數：%d\n", item.Transaction)
+		messageText += fmt.Sprintf("開盤價：%.2f\n", item.OpenPrice)
+		messageText += fmt.Sprintf("收盤價：%.2f\n", item.ClosePrice)
+		messageText += fmt.Sprintf("漲跌幅：%s%.2f (%s)\n", item.UpDownSign, item.ChangeAmount, item.PercentageChange)
+		messageText += fmt.Sprintf("最高價：%.2f\n", item.HighPrice)
+		messageText += fmt.Sprintf("最低價：%.2f\n", item.LowPrice)
+		messageText += "</code>\n"
+	}
+
+	return messageText, nil
+}
+
+// GetStockInfoByDate 取得指定日期的股票資訊
+func (s *TgService) GetStockInfoByDate(symbol, date string) (string, error) {
+	// 取得股票價格資訊
+	stockInfo, err := s.stockService.GetStockPrice(symbol, date)
+	if err != nil {
+		logger.Log.Error("取得股票資訊失敗", zap.Error(err))
+		return "", fmt.Errorf("查無資料，請確認後再試")
+	}
+
+	// 格式化日期顯示
+	var displayDate string
+	if date != "" && len(date) == 8 {
+		displayDate = fmt.Sprintf("%s/%s/%s", date[0:4], date[4:6], date[6:8])
+	} else {
+		t, _ := time.Parse("2006-01-02", stockInfo.Date)
+		displayDate = t.Format("2006/01/02")
+	}
+
+	emoji := ""
+	if stockInfo.UpDownSign == "+" {
+		emoji = "📈"
+	} else if stockInfo.UpDownSign == "-" {
+		emoji = "📉"
+	}
+
+	message := fmt.Sprintf(`<b>%s</b>
+<b>─── %s (%s) %s ───</b>
+<code>開盤價：%.2f
+收盤價：%.2f
+漲跌幅：%s%.2f (%s)
+最高價：%.2f
+最低價：%.2f
+成交股數：%d
+成交筆數：%d</code>`,
+		displayDate,
+		stockInfo.StockName, stockInfo.StockID, emoji,
+		stockInfo.OpenPrice,
+		stockInfo.ClosePrice,
+		stockInfo.UpDownSign, stockInfo.ChangeAmount, stockInfo.PercentageChange,
+		stockInfo.HighPrice,
+		stockInfo.LowPrice,
+		stockInfo.Volume,
+		stockInfo.Transaction)
+
+	return message, nil
+}
+
+// AddUserStockSubscription 新增使用者股票訂閱
+func (s *TgService) AddUserStockSubscription(userID uint, symbol string) (string, error) {
+	// 驗證股票代號
+	valid, _, err := s.stockService.ValidateStockID(symbol)
+	if err != nil || !valid {
+		return "", fmt.Errorf("無此股票代號，請重新確認")
+	}
+
+	// 新增股票訂閱
+	success, err := s.userSubscriptionRepo.AddUserSubscriptionStock(userID, symbol)
+	if err != nil {
+		logger.Log.Error("新增股票訂閱失敗", zap.Error(err))
+		return "", fmt.Errorf("訂閱失敗，請稍後再試")
+	}
+
+	if !success {
+		return "已訂閱過此股票", nil
+	}
+
+	return "訂閱成功", nil
+}
+
+// DeleteUserStockSubscription 刪除使用者股票訂閱
+func (s *TgService) DeleteUserStockSubscription(userID uint, symbol string) (string, error) {
+	// 刪除股票訂閱
+	success, err := s.userSubscriptionRepo.DeleteUserSubscriptionStock(userID, symbol)
+	if err != nil {
+		logger.Log.Error("刪除股票訂閱失敗", zap.Error(err))
+		return "", fmt.Errorf("取消訂閱失敗，請稍後再試")
+	}
+
+	if !success {
+		return "取消訂閱失敗，請檢查是否已訂閱", nil
+	}
+
+	return "取消訂閱成功", nil
+}
+
+// GetUserSubscriptionList 取得使用者訂閱清單
+func (s *TgService) GetUserSubscriptionList(userID uint) (string, error) {
+	// 取得使用者訂閱項目
+	subscriptions, err := s.userSubscriptionRepo.GetUserSubscriptionList(userID)
+	if err != nil {
+		logger.Log.Error("取得使用者訂閱項目失敗", zap.Error(err))
+		return "", fmt.Errorf("取得訂閱清單失敗")
+	}
+
+	// 取得使用者訂閱股票
+	subscriptionStocks, err := s.userSubscriptionRepo.GetUserSubscriptionStockList(userID)
+	if err != nil {
+		logger.Log.Error("取得使用者訂閱股票失敗", zap.Error(err))
+		return "", fmt.Errorf("取得訂閱清單失敗")
+	}
+
+	// 組合訊息
+	messageText := "📋 <b>您目前的訂閱項目</b>\n\n"
+
+	// 訂閱功能清單
+	messageText += "🔔 <b>已訂閱功能：</b>\n"
+	hasActiveSubscriptions := false
+	for _, sub := range subscriptions {
+		if sub.Status == "active" && sub.Feature != nil {
+			messageText += fmt.Sprintf("• %s\n", sub.Feature.Name)
+			hasActiveSubscriptions = true
+		}
+	}
+	if !hasActiveSubscriptions {
+		messageText += "• 尚未訂閱任何功能\n"
+	}
+
+	// 訂閱股票清單
+	messageText += "\n📈 <b>已訂閱股票：</b>\n"
+	if len(subscriptionStocks) > 0 {
+		for _, stock := range subscriptionStocks {
+			if stock.Status == 1 {
+				messageText += fmt.Sprintf("• %s\n", stock.Stock)
 			}
 		}
-		return s.handleDailyMarketInfo(userID, count)
-	case "/t":
-		return s.handleTopVolumeItems(userID)
-	case "/i":
-		return s.handleStockInfo(userID, arg1, arg2)
-	case "/sub":
-		return s.handleSubscribe(userID, arg1)
-	case "/unsub":
-		return s.handleUnsubscribe(userID, arg1)
-	case "/add":
-		return s.handleAddStock(userID, arg1)
-	case "/del":
-		return s.handleDeleteStock(userID, arg1)
-	case "/list":
-		return s.handleListSubscriptions(userID)
-	default:
-		return nil
+	} else {
+		messageText += "• 尚未訂閱任何股票\n"
 	}
+
+	return messageText, nil
 }
 
-// 輔助方法
-
+// convertTimeRange 轉換時間範圍顯示文字
 func (s *TgService) convertTimeRange(timeRange string) string {
 	switch timeRange {
 	case "h":
@@ -143,21 +341,29 @@ func (s *TgService) convertTimeRange(timeRange string) string {
 	}
 }
 
-func (s *TgService) sendMessage(chatID int64, text string) error {
-	msg := tgbotapi.NewMessage(chatID, text)
-	_, err := s.botClient.Send(msg)
+// GetDailyMarketInfoFormatted 取得格式化的大盤資訊
+func (s *TgService) GetDailyMarketInfoFormatted(count int) (string, error) {
+	marketInfoList, err := s.stockService.GetDailyMarketInfo(count)
 	if err != nil {
-		logger.Log.Error("發送訊息失敗", zap.Error(err))
+		logger.Log.Error("取得大盤資訊失敗", zap.Error(err))
+		return "", fmt.Errorf("查無資料，請確認後再試")
 	}
-	return err
-}
 
-func (s *TgService) sendMessageHTML(chatID int64, text string) error {
-	msg := tgbotapi.NewMessage(chatID, text)
-	msg.ParseMode = tgbotapi.ModeHTML
-	_, err := s.botClient.Send(msg)
-	if err != nil {
-		logger.Log.Error("發送 HTML 訊息失敗", zap.Error(err))
+	if len(marketInfoList) == 0 {
+		return "", fmt.Errorf("查無資料，請確認後再試")
 	}
-	return err
+
+	messageText := "<b>台灣股市大盤資訊</b>\n\n"
+	for _, row := range marketInfoList {
+		messageText += fmt.Sprintf("<b>%s</b>\n", row.Date)
+		messageText += "<code>"
+		messageText += fmt.Sprintf("成交股數：%s\n", row.Volume)
+		messageText += fmt.Sprintf("成交金額：%s\n", row.Amount)
+		messageText += fmt.Sprintf("成交筆數：%s\n", row.Transaction)
+		messageText += fmt.Sprintf("發行量加權股價指數：%s\n", row.Index)
+		messageText += fmt.Sprintf("漲跌點數：%s\n", row.Change)
+		messageText += "</code>\n"
+	}
+
+	return messageText, nil
 }

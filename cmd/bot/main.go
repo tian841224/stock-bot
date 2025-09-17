@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"stock-bot/config"
+	"stock-bot/internal/api/finmindTrade"
 	"stock-bot/internal/api/linebot"
 	"stock-bot/internal/api/tgbot"
 	"stock-bot/internal/api/twse"
@@ -70,6 +71,8 @@ func main() {
 		c.JSON(200, gin.H{"message": "ok"})
 	})
 
+	finmindTrade.RegisterRoutes(router, finmindClient)
+
 	// 初始化 LINE Bot 並註冊路由
 	botClient, err := linebotInfra.NewBot(*cfg)
 	if err != nil {
@@ -84,8 +87,10 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("初始化 Telegram Bot 失敗: %v", err))
 	}
-	tgSvc := tgService.NewTgService(tgClient.Client, stockService, userService, userSubscriptionRepo)
-	tgHandler := tgbot.NewTgHandler(cfg, tgSvc)
+	tgSvc := tgService.NewTgService(stockService, userSubscriptionRepo)
+	tgCommandHandler := tgService.NewTgCommandHandler(tgClient.Client, tgSvc, userService, userSubscriptionRepo)
+	tgServiceHandler := tgService.NewTgHandler(tgCommandHandler, userService)
+	tgHandler := tgbot.NewTgHandler(cfg, tgServiceHandler)
 	tgbot.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
 
 	// 初始化 TWSE API 並註冊路由
