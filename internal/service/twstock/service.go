@@ -583,6 +583,22 @@ func (s *StockService) GetAfterTradingVolume(symbol, date string) (*twseDto.Afte
 	return nil, fmt.Errorf("找不到指定股票: %s", symbol)
 }
 
+func (s *StockService) GetStockNews(stockID string) ([]dto.TaiwanNewsResponseData, error) {
+	requestDto := dto.FinmindtradeRequestDto{
+		DataID:    stockID,
+		StartDate: time.Now().Format("2006-01-02"),
+	}
+	response, err := s.finmindClient.GetTaiwanStockNews(requestDto)
+	if err != nil {
+		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
+		return nil, err
+	}
+	if response.Status != 200 {
+		return nil, fmt.Errorf("API 回應錯誤: %s", response.Msg)
+	}
+	return response.Data, nil
+}
+
 // GetStockAnalysis 取得股票分析圖表
 func (s *StockService) GetStockAnalysis(stockID string) ([]byte, string, error) {
 	logger.Log.Info("取得股票分析", zap.String("stockID", stockID))

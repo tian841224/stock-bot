@@ -18,6 +18,7 @@ type FinmindTradeAPIInterface interface {
 	GetTaiwanStockFinancialStatements(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockFinancialStatementsResponseDto, error)
 	GetTaiwanStockMonthRevenue(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockMonthRevenueResponseDto, error)
 	GetTaiwanStockTradingDate(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockTradingDateResponseDto, error)
+	GetTaiwanStockNews(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanNewsResponseDto, error)
 	GetTaiwanVariousIndicators(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanVariousIndicatorsResponseDto, error)
 	GetTaiwanStockSplitPrice(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockSplitPriceResponseDto, error)
 	GetUSStockInfo() (dto.USStockInfoResponseDto, error)
@@ -100,6 +101,11 @@ func (f *FinmindTradeAPI) GetTaiwanVariousIndicators(requestDto dto.Finmindtrade
 func (f *FinmindTradeAPI) GetTaiwanStockSplitPrice(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockSplitPriceResponseDto, err error) {
 	requestDto.DataSet = "TaiwanStockSplitPrice"
 	return doRequest[dto.TaiwanStockSplitPriceResponseDto](f, requestDto)
+}
+
+func (f *FinmindTradeAPI) GetTaiwanStockNews(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanNewsResponseDto, err error) {
+	requestDto.DataSet = "TaiwanStockNews"
+	return doRequest[dto.TaiwanNewsResponseDto](f, requestDto)
 }
 
 // 美股股票清單

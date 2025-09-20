@@ -3,12 +3,14 @@ package tg
 import (
 	"fmt"
 	"stock-bot/internal/repository"
+	tgDto "stock-bot/internal/service/bot/tg/dto"
 	"stock-bot/internal/service/twstock"
 	stockDto "stock-bot/internal/service/twstock/dto"
 	"stock-bot/pkg/logger"
 	"strings"
 	"time"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.uber.org/zap"
 )
 
@@ -300,16 +302,41 @@ func (s *TgService) GetUserSubscriptionList(userID uint) (string, error) {
 	return messageText, nil
 }
 
-// GetStockNews 取得股票新聞
-func (s *TgService) GetStockNews(symbol string) (string, error) {
+// GetTaiwanStockNews 取得股票新聞
+func (s *TgService) GetTaiwanStockNews(symbol string) (*tgDto.StockNewsMessage, error) {
 	// 驗證股票代號
 	valid, stockName, err := s.stockService.ValidateStockID(symbol)
 	if err != nil || !valid {
-		return "", fmt.Errorf("查無此股票代號，請重新確認")
+		return nil, fmt.Errorf("查無此股票代號，請重新確認")
 	}
 
-	// 這裡需要實際的新聞服務，暫時返回模擬資料
-	message := fmt.Sprintf("⚡️%s(%s)-即時新聞\n\n暫無新聞資料，功能開發中...", stockName, symbol)
+	// 取得新聞
+	news, err := s.stockService.GetStockNews(symbol)
+	if err != nil {
+		logger.Log.Error("取得股票新聞失敗", zap.Error(err))
+		return nil, fmt.Errorf("取得新聞失敗，請稍後再試")
+	}
+
+	if len(news) == 0 {
+		return &tgDto.StockNewsMessage{
+			Text: fmt.Sprintf("⚡️%s(%s)-即時新聞\n\n暫無新聞資料", stockName, symbol),
+		}, nil
+	}
+
+	// 建立新聞按鈕
+	var rows [][]tgbotapi.InlineKeyboardButton
+	for _, n := range news {
+		btn := tgbotapi.NewInlineKeyboardButtonURL(n.Title, n.Link)
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(btn))
+	}
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+	// 組合訊息
+	message := &tgDto.StockNewsMessage{
+		Text:                 fmt.Sprintf("⚡️%s(%s)-即時新聞", stockName, symbol),
+		InlineKeyboardMarkup: &keyboard,
+	}
+
 	return message, nil
 }
 

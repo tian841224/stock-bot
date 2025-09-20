@@ -200,19 +200,19 @@ func (c *TgCommandHandler) CommandTodayStockPrice(userID int64, symbol, date str
 }
 
 // CommandNews 處理 /n 命令 - 股票新聞
-// func (c *TgCommandHandler) CommandNews(userID int64, symbol string) error {
-// 	if symbol == "" {
-// 		return c.sendMessage(userID, "請輸入股票代號")
-// 	}
+func (c *TgCommandHandler) CommandNews(userID int64, symbol string) error {
+	if symbol == "" {
+		return c.sendMessage(userID, "請輸入股票代號")
+	}
 
-// 	// 取得新聞資料
-// 	message, err := c.tgService.GetStockNews(symbol)
-// 	if err != nil {
-// 		return c.sendMessage(userID, err.Error())
-// 	}
+	// 取得新聞資料
+	newsMessage, err := c.tgService.GetTaiwanStockNews(symbol)
+	if err != nil {
+		return c.sendMessage(userID, err.Error())
+	}
 
-// 	return c.sendMessage(userID, message)
-// }
+	return c.sendMessageWithKeyboard(userID, newsMessage.Text, newsMessage.InlineKeyboardMarkup)
+}
 
 // // CommandDailyMarketInfo 處理 /m 命令 - 大盤資訊
 // func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error {
@@ -404,6 +404,18 @@ func (c *TgCommandHandler) sendMessage(chatID int64, text string) error {
 	_, err := c.botClient.Send(msg)
 	if err != nil {
 		logger.Log.Error("發送訊息失敗", zap.Error(err))
+	}
+	return err
+}
+
+func (c *TgCommandHandler) sendMessageWithKeyboard(chatID int64, text string, keyboard *tgbotapi.InlineKeyboardMarkup) error {
+	msg := tgbotapi.NewMessage(chatID, text)
+	if keyboard != nil {
+		msg.ReplyMarkup = keyboard
+	}
+	_, err := c.botClient.Send(msg)
+	if err != nil {
+		logger.Log.Error("發送帶有鍵盤的訊息失敗", zap.Error(err))
 	}
 	return err
 }
