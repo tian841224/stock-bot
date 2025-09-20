@@ -360,32 +360,27 @@ func (s *TgService) formatRevenueMessage(revenue *stockDto.RevenueDto) string {
 	}
 
 	message.WriteString("<pre>")
-	message.WriteString("月份     營收(千元)    年增率  累計營收(千元)  累計年增率\n")
-	message.WriteString("─────────────────────────────────────────────────\n")
-
 	// 顯示所有資料
 	for i := 0; i < len(revenue.Time); i++ {
 		timeStr := s.formatTimeFromTimestamp(revenue.Time[i])
 
-		// 營收(千元)
-		monthRevenue := revenue.SaleMonth[i]
+		// 營收(千元) -> 億元
+		monthRevenueE := float64(revenue.SaleMonth[i]) / 100000.0
 
 		// 年增率
 		yoy := revenue.YoY[i]
 
-		// 累計營收(千元)
-		accumulatedRevenue := revenue.SaleAccumulated[i]
+		// 累計營收(千元) -> 億元
+		accumulatedRevenueE := float64(revenue.SaleAccumulated[i]) / 100000.0
 
 		// 累計年增率
 		accumulatedYoY := revenue.YoYAccumulated[i]
 
-		// 格式化輸出，對齊顯示
-		message.WriteString(fmt.Sprintf("%-8s %10s %8.1f%% %12s %10.1f%%\n",
-			timeStr,
-			s.formatNumber(monthRevenue),
-			yoy,
-			s.formatNumber(accumulatedRevenue),
-			accumulatedYoY))
+		message.WriteString(fmt.Sprintf("---%s---\n", timeStr))
+		message.WriteString(fmt.Sprintf("營收(億元): %.2f\n", monthRevenueE))
+		message.WriteString(fmt.Sprintf("年增率: %.2f%%\n", yoy))
+		message.WriteString(fmt.Sprintf("累計營收(億元): %.2f\n", accumulatedRevenueE))
+		message.WriteString(fmt.Sprintf("累計年增率: %.2f%%\n\n", accumulatedYoY))
 	}
 	message.WriteString("</pre>")
 
