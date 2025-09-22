@@ -10,6 +10,8 @@ import (
 	cnyesInfraDto "stock-bot/internal/infrastructure/cnyes/dto"
 	"stock-bot/internal/infrastructure/finmindtrade"
 	"stock-bot/internal/infrastructure/finmindtrade/dto"
+	"stock-bot/internal/infrastructure/fugle"
+	fugleDto "stock-bot/internal/infrastructure/fugle/dto"
 	"stock-bot/internal/infrastructure/twse"
 	twseDto "stock-bot/internal/infrastructure/twse/dto"
 	"stock-bot/internal/repository"
@@ -27,6 +29,7 @@ type StockService struct {
 	finmindClient finmindtrade.FinmindTradeAPIInterface
 	twseAPI       *twse.TwseAPI
 	cnyesAPI      *cnyes.CnyesAPI
+	fugleClient   *fugle.FugleAPI
 	symbolsRepo   repository.SymbolRepository
 }
 
@@ -35,12 +38,14 @@ func NewStockService(
 	finmindClient finmindtrade.FinmindTradeAPIInterface,
 	twseAPI *twse.TwseAPI,
 	cnyesAPI *cnyes.CnyesAPI,
+	fugleClient *fugle.FugleAPI,
 	symbolsRepo repository.SymbolRepository,
 ) *StockService {
 	return &StockService{
 		finmindClient: finmindClient,
 		twseAPI:       twseAPI,
 		cnyesAPI:      cnyesAPI,
+		fugleClient:   fugleClient,
 		symbolsRepo:   symbolsRepo,
 	}
 }
@@ -597,6 +602,19 @@ func (s *StockService) GetStockNews(stockID string) ([]dto.TaiwanNewsResponseDat
 		return nil, fmt.Errorf("API 回應錯誤: %s", response.Msg)
 	}
 	return response.Data, nil
+}
+
+// GetStockIntradayQuote 取得股票盤中即時資料
+func (s *StockService) GetStockIntradayQuote(stockID string) (*fugleDto.FugleStockQuoteResponseDto, error) {
+	requestDto := fugleDto.FugleStockQuoteRequestDto{
+		Symbol: stockID,
+	}
+	response, err := s.fugleClient.GetStockIntradayQuote(requestDto)
+	if err != nil {
+		return nil, err
+	}
+
+	return &response, nil
 }
 
 // GetStockAnalysis 取得股票分析圖表

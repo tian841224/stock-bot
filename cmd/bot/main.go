@@ -12,12 +12,14 @@ import (
 	"stock-bot/config"
 	"stock-bot/internal/api/cnyes"
 	"stock-bot/internal/api/finmindTrade"
+	"stock-bot/internal/api/fugle"
 	"stock-bot/internal/api/linebot"
 	"stock-bot/internal/api/tgbot"
 	"stock-bot/internal/api/twse"
 	"stock-bot/internal/db"
 	cnyesInfra "stock-bot/internal/infrastructure/cnyes"
 	"stock-bot/internal/infrastructure/finmindtrade"
+	fugleInfra "stock-bot/internal/infrastructure/fugle"
 	linebotInfra "stock-bot/internal/infrastructure/linebot"
 	tgbotInfra "stock-bot/internal/infrastructure/tgbot"
 	twseInfra "stock-bot/internal/infrastructure/twse"
@@ -57,13 +59,14 @@ func main() {
 	userSubscriptionRepo := repository.NewUserSubscriptionRepository(db.GetDB())
 
 	// 初始化外部 API 客戶端
+	fugleAPI := fugleInfra.NewFugleAPI(*cfg)
 	finmindClient := finmindtrade.NewFinmindTradeAPI(*cfg)
 	twseAPI := twseInfra.NewTwseAPI()
 	cnyesAPI := cnyesInfra.NewCnyesAPI()
 
 	// 初始化服務
 	userService := user.NewUserService(userRepo)
-	stockService := twstockService.NewStockService(finmindClient, twseAPI, cnyesAPI, symbolsRepo)
+	stockService := twstockService.NewStockService(finmindClient, twseAPI, cnyesAPI, fugleAPI, symbolsRepo)
 
 	// 建立 Gin 引擎與註冊路由
 	router := gin.Default()
@@ -74,6 +77,7 @@ func main() {
 	})
 
 	finmindTrade.RegisterRoutes(router, finmindClient)
+	fugle.RegisterRoutes(router, stockService)
 
 	// 初始化鉅亨網API並註冊路由
 	cnyes.RegisterRoutes(router, stockService)

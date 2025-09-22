@@ -19,4 +19,6 @@ type Config struct {
 	TELEGRAM_BOT_SECRET_TOKEN   string `mapstructure:"TELEGRAM_BOT_SECRET_TOKEN"`
 	// Finmind Trade
 	FINMIND_TOKEN string `mapstructure:"FINMIND_TOKEN"`
+	// Fugle
+	FUGLE_API_KEY string `mapstructure:"FUGLE_API_KEY"`
 }
