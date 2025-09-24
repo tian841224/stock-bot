@@ -18,7 +18,9 @@ type FinmindTradeAPIInterface interface {
 	GetTaiwanStockFinancialStatements(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockFinancialStatementsResponseDto, error)
 	GetTaiwanStockMonthRevenue(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockMonthRevenueResponseDto, error)
 	GetTaiwanStockTradingDate(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockTradingDateResponseDto, error)
+	GetTaiwanStockNews(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanNewsResponseDto, error)
 	GetTaiwanVariousIndicators(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanVariousIndicatorsResponseDto, error)
+	GetTaiwanStockSplitPrice(requestDto dto.FinmindtradeRequestDto) (dto.TaiwanStockSplitPriceResponseDto, error)
 	GetUSStockInfo() (dto.USStockInfoResponseDto, error)
 	GetUSStockPrice(requestDto dto.FinmindtradeRequestDto) (dto.USStockPriceResponseDto, error)
 	GetTodayInfo() (dto.TodayInfoResponseDto, error)
@@ -93,6 +95,17 @@ func (f *FinmindTradeAPI) GetTaiwanStockTradingDate(requestDto dto.FinmindtradeR
 func (f *FinmindTradeAPI) GetTaiwanVariousIndicators(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanVariousIndicatorsResponseDto, err error) {
 	requestDto.DataSet = "TaiwanVariousIndicators5Seconds"
 	return doRequest[dto.TaiwanVariousIndicatorsResponseDto](f, requestDto)
+}
+
+// 台股分割股價
+func (f *FinmindTradeAPI) GetTaiwanStockSplitPrice(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanStockSplitPriceResponseDto, err error) {
+	requestDto.DataSet = "TaiwanStockSplitPrice"
+	return doRequest[dto.TaiwanStockSplitPriceResponseDto](f, requestDto)
+}
+
+func (f *FinmindTradeAPI) GetTaiwanStockNews(requestDto dto.FinmindtradeRequestDto) (response dto.TaiwanNewsResponseDto, err error) {
+	requestDto.DataSet = "TaiwanStockNews"
+	return doRequest[dto.TaiwanNewsResponseDto](f, requestDto)
 }
 
 // 美股股票清單

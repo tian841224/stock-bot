@@ -12,17 +12,17 @@ import (
 	"stock-bot/config"
 	"stock-bot/internal/api/linebot"
 	"stock-bot/internal/api/tgbot"
-	"stock-bot/internal/api/twse"
 	"stock-bot/internal/db"
+	cnyesInfra "stock-bot/internal/infrastructure/cnyes"
 	"stock-bot/internal/infrastructure/finmindtrade"
+	fugleInfra "stock-bot/internal/infrastructure/fugle"
 	linebotInfra "stock-bot/internal/infrastructure/linebot"
 	tgbotInfra "stock-bot/internal/infrastructure/tgbot"
 	twseInfra "stock-bot/internal/infrastructure/twse"
 	"stock-bot/internal/repository"
 	lineService "stock-bot/internal/service/bot/line"
 	tgService "stock-bot/internal/service/bot/tg"
-	"stock-bot/internal/service/stock"
-	twseService "stock-bot/internal/service/twse"
+	twstockService "stock-bot/internal/service/twstock"
 	"stock-bot/internal/service/user"
 	"stock-bot/pkg/logger"
 
@@ -55,12 +55,14 @@ func main() {
 	userSubscriptionRepo := repository.NewUserSubscriptionRepository(db.GetDB())
 
 	// 初始化外部 API 客戶端
+	fugleAPI := fugleInfra.NewFugleAPI(*cfg)
 	finmindClient := finmindtrade.NewFinmindTradeAPI(*cfg)
 	twseAPI := twseInfra.NewTwseAPI()
+	cnyesAPI := cnyesInfra.NewCnyesAPI()
 
 	// 初始化服務
 	userService := user.NewUserService(userRepo)
-	stockService := stock.NewStockService(finmindClient, twseAPI, symbolsRepo)
+	stockService := twstockService.NewStockService(finmindClient, twseAPI, cnyesAPI, fugleAPI, symbolsRepo)
 
 	// 建立 Gin 引擎與註冊路由
 	router := gin.Default()
@@ -84,14 +86,11 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("初始化 Telegram Bot 失敗: %v", err))
 	}
-	tgSvc := tgService.NewTgService(tgClient.Client, stockService, userService, userSubscriptionRepo)
-	tgHandler := tgbot.NewTgHandler(cfg, tgSvc)
+	tgSvc := tgService.NewTgService(stockService, userSubscriptionRepo)
+	tgCommandHandler := tgService.NewTgCommandHandler(tgClient.Client, tgSvc, userService, userSubscriptionRepo)
+	tgServiceHandler := tgService.NewTgHandler(tgCommandHandler, userService)
+	tgHandler := tgbot.NewTgHandler(cfg, tgServiceHandler)
 	tgbot.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
-
-	// 初始化 TWSE API 並註冊路由
-	twseService := twseService.NewTwseService(twseAPI)
-	twseHandler := twse.NewTwseHandler(twseService)
-	twse.RegisterRoutes(router, twseHandler)
 
 	// 從環境變數讀取埠號，預設 8080
 	port := os.Getenv("PORT")
@@ -119,7 +118,7 @@ func main() {
 	logger.Log.Info("HTTP 伺服器啟動成功")
 	logger.Log.Info("程式執行中...")
 
-	// 等待終止訊號或啟動錯誤56
+	// 等待終止訊號或啟動錯誤
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 

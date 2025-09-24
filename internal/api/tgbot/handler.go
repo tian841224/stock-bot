@@ -13,12 +13,12 @@ import (
 )
 
 type TgHandler struct {
-	cfg       *config.Config
-	tgService *tg.TgService
+	cfg              *config.Config
+	tgServiceHandler *tg.TgHandler
 }
 
-func NewTgHandler(cfg *config.Config, tgService *tg.TgService) *TgHandler {
-	return &TgHandler{cfg: cfg, tgService: tgService}
+func NewTgHandler(cfg *config.Config, tgServiceHandler *tg.TgHandler) *TgHandler {
+	return &TgHandler{cfg: cfg, tgServiceHandler: tgServiceHandler}
 }
 
 // Webhook 驗證 X-Telegram-Bot-Api-Secret-Token 並回應 200
@@ -47,7 +47,7 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 				logger.Log.Error("處理 Telegram 更新發生 panic", zap.Any("recover", r))
 			}
 		}()
-		if err := h.tgService.HandleUpdate(&u); err != nil {
+		if err := h.tgServiceHandler.ProcessUpdate(&u); err != nil {
 			logger.Log.Error("處理 Telegram 更新失敗", zap.Error(err), zap.Int("update_id", u.UpdateID))
 		}
 	}(update)
