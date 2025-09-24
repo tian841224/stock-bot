@@ -3,6 +3,7 @@ package tg
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"stock-bot/internal/db/models"
 	"stock-bot/internal/service/user"
@@ -76,6 +77,22 @@ func (s *TgHandler) processCommand(message *tgbotapi.Message) error {
 		return s.commandHandler.CommandPerformanceChart(userID, arg1)
 	case "/d":
 		// 今日股價
+		if arg2 == "" {
+			// 取得台灣時區當前時間
+			taipeiLocation, _ := time.LoadLocation("Asia/Taipei")
+			now := time.Now().In(taipeiLocation)
+
+			// 判斷是否在早上9點半之前
+			marketOpenTime := time.Date(now.Year(), now.Month(), now.Day(), 9, 30, 0, 0, taipeiLocation)
+
+			if now.Before(marketOpenTime) {
+				// 9點半前，使用前一天日期
+				arg2 = now.AddDate(0, 0, -1).Format("2006-01-02")
+			} else {
+				// 9點半後，使用當天日期
+				arg2 = now.Format("2006-01-02")
+			}
+		}
 		return s.commandHandler.CommandTodayStockPrice(userID, arg1, arg2)
 	case "/t":
 		// 交易量前20名

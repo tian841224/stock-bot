@@ -10,12 +10,8 @@ import (
 	"time"
 
 	"stock-bot/config"
-	"stock-bot/internal/api/cnyes"
-	"stock-bot/internal/api/finmindTrade"
-	"stock-bot/internal/api/fugle"
 	"stock-bot/internal/api/linebot"
 	"stock-bot/internal/api/tgbot"
-	"stock-bot/internal/api/twse"
 	"stock-bot/internal/db"
 	cnyesInfra "stock-bot/internal/infrastructure/cnyes"
 	"stock-bot/internal/infrastructure/finmindtrade"
@@ -76,12 +72,6 @@ func main() {
 		c.JSON(200, gin.H{"message": "ok"})
 	})
 
-	finmindTrade.RegisterRoutes(router, finmindClient)
-	fugle.RegisterRoutes(router, stockService)
-
-	// 初始化鉅亨網API並註冊路由
-	cnyes.RegisterRoutes(router, stockService)
-
 	// 初始化 LINE Bot 並註冊路由
 	botClient, err := linebotInfra.NewBot(*cfg)
 	if err != nil {
@@ -101,10 +91,6 @@ func main() {
 	tgServiceHandler := tgService.NewTgHandler(tgCommandHandler, userService)
 	tgHandler := tgbot.NewTgHandler(cfg, tgServiceHandler)
 	tgbot.RegisterRoutes(router, tgHandler, cfg.TELEGRAM_BOT_WEBHOOK_PATH)
-
-	// 初始化 TWSE API 並註冊路由
-	twseHandler := twse.NewTwseHandler(stockService)
-	twse.RegisterRoutes(router, twseHandler)
 
 	// 從環境變數讀取埠號，預設 8080
 	port := os.Getenv("PORT")
