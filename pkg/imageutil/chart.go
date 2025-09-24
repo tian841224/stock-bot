@@ -267,6 +267,21 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 		// 折線圖（X軸=時間，Y軸=績效）
 		lineColor := color.RGBA{212, 135, 135, 255} // 深一點的粉紅色
 
+		// 找出最高績效和最低績效的索引
+		var maxIndex, minIndex int
+		maxValue := values[0]
+		minValue := values[0]
+		for i, value := range values {
+			if value > maxValue {
+				maxValue = value
+				maxIndex = i
+			}
+			if value < minValue {
+				minValue = value
+				minIndex = i
+			}
+		}
+
 		// 繪製折線（只有連接線，不顯示資料點）
 		for i := range data {
 			value := values[i]
@@ -280,6 +295,38 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 				prevY := chartTop + chartHeight - int((prevValue-minVal)/(maxVal-minVal)*float64(chartHeight))
 				drawThickLine(img, prevX, prevY, x, y, 3, lineColor) // 使用3像素粗線
 			}
+		}
+
+		// 標示最高績效
+		if len(values) > 0 {
+			maxX := chartLeft + (chartWidth * maxIndex / (len(data) - 1))
+			maxY := chartTop + chartHeight - int((maxValue-minVal)/(maxVal-minVal)*float64(chartHeight))
+
+			c.SetFontSize(14)
+			c.SetSrc(image.NewUniform(color.RGBA{212, 135, 135, 255})) // 深粉紅色
+			maxLabel := fmt.Sprintf("最高: %.2f%%", maxValue)
+			c.DrawString(maxLabel, freetype.Pt(maxX-30, maxY-15))
+
+			// 繪製指向最高點的小圓圈
+			drawCircle(img, maxX, maxY, 4, color.RGBA{212, 135, 135, 255})
+		}
+
+		// 標示最低績效
+		if len(values) > 0 {
+			minX := chartLeft + (chartWidth * minIndex / (len(data) - 1))
+			minY := chartTop + chartHeight - int((minValue-minVal)/(maxVal-minVal)*float64(chartHeight))
+
+			c.SetFontSize(14)
+			c.SetSrc(image.NewUniform(color.RGBA{144, 182, 154, 255})) // 深薄荷綠
+			minLabel := fmt.Sprintf("最低: %.2f%%", minValue)
+			c.DrawString(minLabel, freetype.Pt(minX-30, minY+25))
+
+			// 繪製指向最低點的小圓圈
+			drawCircle(img, minX, minY, 4, color.RGBA{144, 182, 154, 255})
+
+			// 重設字型顏色
+			c.SetSrc(image.NewUniform(color.RGBA{51, 51, 51, 255}))
+			c.SetFontSize(12)
 		}
 
 		// 零線 (如果有負值) - 水平線
