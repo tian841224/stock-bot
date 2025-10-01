@@ -1,6 +1,6 @@
 package models
 
-// modelRegistry 保存所有需要 AutoMigrate 的模型
+// modelRegistry 儲存所有需要 AutoMigrate 的模型
 var modelRegistry []interface{}
 
 // RegisterModel 在 init 中呼叫以註冊模型

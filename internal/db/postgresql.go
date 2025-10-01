@@ -70,7 +70,13 @@ func connectDB(cfg *config.Config) error {
 }
 
 func createOrUpdateTable() error {
-	return db.AutoMigrate(models.AllModels()...)
+	allModels := models.AllModels()
+
+	if err := db.AutoMigrate(allModels...); err != nil {
+		return fmt.Errorf("資料庫遷移失敗: %w", err)
+	}
+
+	return nil
 }
 
 // createDatabaseIfNotExists 檢查並建立資料庫
