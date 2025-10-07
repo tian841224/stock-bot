@@ -20,8 +20,6 @@ services:
 
   # Stock Bot 應用程式
   stock-bot-go:
-    build:
-      context: .
     image: ${DOCKER_HUB_USERNAME}/stock-bot-go:latest
     restart: unless-stopped
     env_file:
@@ -72,8 +70,6 @@ services:
 
   # Stock Data Sync Service
   sync-stock-info-go:
-    build:
-      context: .
     image: ${DOCKER_HUB_USERNAME}/stock-bot-sync:latest
     restart: unless-stopped
     env_file:
