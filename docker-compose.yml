@@ -70,7 +70,7 @@ services:
 
   # Stock Data Sync Service
   sync-stock-info-go:
-    image: ${DOCKER_HUB_USERNAME}/stock-bot-sync:latest
+    image: ${DOCKER_HUB_USERNAME}/stock-bot-sync-go:latest
     restart: unless-stopped
     env_file:
       - .env
