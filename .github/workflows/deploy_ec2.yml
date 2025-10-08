@@ -72,10 +72,10 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot:latest
-            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot:buildcache,mode=max
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-go:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-go:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-go:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-go:buildcache,mode=max
 
       - name: 建置並推送同步服務 Docker 映像檔
         uses: docker/build-push-action@v5
@@ -84,10 +84,10 @@ jobs:
           file: ./Dockerfile.sync
           push: true
           tags: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync:latest
-            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync:buildcache,mode=max
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:buildcache,mode=max
 
   Deploy:
     if: github.event_name == 'push'
