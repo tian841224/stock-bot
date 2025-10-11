@@ -22,8 +22,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/bot
 # 使用輕量級的 Alpine 映像作為執行階段
 FROM alpine:latest
 
-# 安裝 ca-certificates 和 tzdata
-RUN apk --no-cache add ca-certificates tzdata
+# 安裝 ca-certificates、tzdata 和中文字型套件
+RUN apk --no-cache add ca-certificates tzdata font-noto-cjk font-noto-emoji
 
 # 設定時區為台北時間
 ENV TZ=Asia/Taipei

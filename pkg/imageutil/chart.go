@@ -56,6 +56,12 @@ func DefaultChartConfig() ChartConfig {
 		ShowLegend: true,
 		ChartType:  "line",
 		chineseFontPaths: []string{
+			// Linux 環境字型路徑
+			"/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+			"/usr/share/fonts/noto-cjk/NotoSerifCJK-Regular.ttc",
+			"/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+			"/usr/share/fonts/noto-cjk/NotoSerifCJK-Bold.ttc",
+			// Windows 環境字型路徑（開發環境）
 			"C:\\Windows\\Fonts\\msyh.ttc",   // 微軟雅黑
 			"C:\\Windows\\Fonts\\simsun.ttc", // 宋體
 			"C:\\Windows\\Fonts\\simhei.ttf", // 黑體
@@ -80,8 +86,14 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 	var ttf *truetype.Font
 	var err error
 
-	// 嘗試載入系統中支援中文的字型（Windows系統）
+	// 嘗試載入系統中支援中文的字型（跨平台支援）
 	chineseFontPaths := []string{
+		// Linux 環境字型路徑
+		"/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+		"/usr/share/fonts/noto-cjk/NotoSerifCJK-Regular.ttc",
+		"/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+		"/usr/share/fonts/noto-cjk/NotoSerifCJK-Bold.ttc",
+		// Windows 環境字型路徑（開發環境）
 		"C:\\Windows\\Fonts\\msyh.ttc",   // 微軟雅黑
 		"C:\\Windows\\Fonts\\simsun.ttc", // 宋體
 		"C:\\Windows\\Fonts\\simhei.ttf", // 黑體
