@@ -60,37 +60,44 @@ func DefaultChartConfig() ChartConfig {
 
 // loadChineseFont 載入支援中文的字型
 func loadChineseFont() (*truetype.Font, error) {
-	// 嘗試查找各種中文字型
-	fontNames := []string{
-		// Windows 字型
-		"Microsoft YaHei", // 微軟雅黑
-		"SimHei",          // 黑體
-		"SimSun",          // 宋體
-		// Linux 字型
-		"Noto Sans CJK TC",    // Noto Sans CJK 繁體中文
-		"Noto Serif CJK TC",   // Noto Serif CJK 繁體中文
-		"WenQuanYi Micro Hei", // 文泉驛微米黑
-		// macOS 字型
-		"PingFang TC", // 苹方-繁
-		"Heiti TC",    // 黑体-繁
+	// 定義可能的字型路徑
+	fontPaths := []string{
+		"/usr/share/fonts/noto/NotoSansCJK-Regular.ttc",
 	}
 
-	// 嘗試查找並載入字型
-	for _, fontName := range fontNames {
-		fontPath, err := findfont.Find(fontName)
-		if err == nil {
-			fontBytes, err := os.ReadFile(fontPath)
-			if err == nil {
-				ttf, err := truetype.Parse(fontBytes)
-				if err == nil {
-					return ttf, nil
-				}
+	// 先嘗試直接路徑載入
+	for _, path := range fontPaths {
+		if font, err := loadFontFromPath(path); err == nil {
+			return font, nil
+		}
+	}
+
+	// 再嘗試使用字型名稱查找
+	fontNames := []string{
+		"Noto Sans CJK TC", 
+		"Noto Serif CJK TC",
+		"WenQuanYi Micro Hei",
+		"Microsoft YaHei",
+	}
+
+	for _, name := range fontNames {
+		if fontPath, err := findfont.Find(name); err == nil {
+			if font, err := loadFontFromPath(fontPath); err == nil {
+				return font, nil
 			}
 		}
 	}
 
-	// 如果找不到任何中文字型，返回預設字型
+	// 最後使用內建字型
 	return truetype.Parse(goregular.TTF)
+}
+
+func loadFontFromPath(path string) (*truetype.Font, error) {
+	fontBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return truetype.Parse(fontBytes)
 }
 
 // GeneratePerformanceChartPNG 生成績效圖表 (PNG格式)

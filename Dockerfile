@@ -23,7 +23,19 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/bot
 FROM alpine:latest
 
 # 安裝 ca-certificates、tzdata 和中文字型套件
-RUN apk --no-cache add ca-certificates tzdata font-noto-cjk font-noto-emoji
+RUN apk --no-cache add \
+    ca-certificates \
+    tzdata \
+    font-noto-cjk \
+    font-noto-emoji \
+    fontconfig \
+    ttf-freefont \
+    && fc-cache -f -v
+
+# 建立字型快取目錄並設定權限
+RUN mkdir -p /usr/share/fonts \
+    && chmod 755 /usr/share/fonts \
+    && fc-cache -f -v
 
 # 設定時區為台北時間
 ENV TZ=Asia/Taipei
