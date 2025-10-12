@@ -3,6 +3,7 @@ module stock-bot
 go 1.24.1
 
 require (
+	github.com/flopp/go-findfont v0.1.0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 	github.com/spf13/viper v1.20.1

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flopp/go-findfont"
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font/gofont/goregular"
@@ -37,13 +38,12 @@ type RevenueChartData struct {
 
 // ChartConfig 圖表設定
 type ChartConfig struct {
-	Title            string
-	Width            int
-	Height           int
-	ShowGrid         bool
-	ShowLegend       bool
-	ChartType        string // "line" 或 "bar"
-	chineseFontPaths []string
+	Title      string
+	Width      int
+	Height     int
+	ShowGrid   bool
+	ShowLegend bool
+	ChartType  string // "line" 或 "bar"
 }
 
 // DefaultChartConfig 預設圖表設定
@@ -55,19 +55,42 @@ func DefaultChartConfig() ChartConfig {
 		ShowGrid:   true,
 		ShowLegend: true,
 		ChartType:  "line",
-		chineseFontPaths: []string{
-			// Linux 環境字型路徑
-			"/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-			"/usr/share/fonts/noto-cjk/NotoSerifCJK-Regular.ttc",
-			"/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
-			"/usr/share/fonts/noto-cjk/NotoSerifCJK-Bold.ttc",
-			// Windows 環境字型路徑（開發環境）
-			"C:\\Windows\\Fonts\\msyh.ttc",   // 微軟雅黑
-			"C:\\Windows\\Fonts\\simsun.ttc", // 宋體
-			"C:\\Windows\\Fonts\\simhei.ttf", // 黑體
-			"C:\\Windows\\Fonts\\simkai.ttf", // 楷體
-		},
 	}
+}
+
+// loadChineseFont 載入支援中文的字型
+func loadChineseFont() (*truetype.Font, error) {
+	// 嘗試查找各種中文字型
+	fontNames := []string{
+		// Windows 字型
+		"Microsoft YaHei", // 微軟雅黑
+		"SimHei",          // 黑體
+		"SimSun",          // 宋體
+		// Linux 字型
+		"Noto Sans CJK TC",    // Noto Sans CJK 繁體中文
+		"Noto Serif CJK TC",   // Noto Serif CJK 繁體中文
+		"WenQuanYi Micro Hei", // 文泉驛微米黑
+		// macOS 字型
+		"PingFang TC", // 苹方-繁
+		"Heiti TC",    // 黑体-繁
+	}
+
+	// 嘗試查找並載入字型
+	for _, fontName := range fontNames {
+		fontPath, err := findfont.Find(fontName)
+		if err == nil {
+			fontBytes, err := os.ReadFile(fontPath)
+			if err == nil {
+				ttf, err := truetype.Parse(fontBytes)
+				if err == nil {
+					return ttf, nil
+				}
+			}
+		}
+	}
+
+	// 如果找不到任何中文字型，返回預設字型
+	return truetype.Parse(goregular.TTF)
 }
 
 // GeneratePerformanceChartPNG 生成績效圖表 (PNG格式)
@@ -82,45 +105,10 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 	// 填充白色背景
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
 
-	// 載入字型 - 嘗試載入支援中文的字型
-	var ttf *truetype.Font
-	var err error
-
-	// 嘗試載入系統中支援中文的字型（跨平台支援）
-	chineseFontPaths := []string{
-		// Linux 環境字型路徑
-		"/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-		"/usr/share/fonts/noto-cjk/NotoSerifCJK-Regular.ttc",
-		"/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
-		"/usr/share/fonts/noto-cjk/NotoSerifCJK-Bold.ttc",
-		// Windows 環境字型路徑（開發環境）
-		"C:\\Windows\\Fonts\\msyh.ttc",   // 微軟雅黑
-		"C:\\Windows\\Fonts\\simsun.ttc", // 宋體
-		"C:\\Windows\\Fonts\\simhei.ttf", // 黑體
-		"C:\\Windows\\Fonts\\simkai.ttf", // 楷體
-	}
-
-	fontLoaded := false
-	for _, fontPath := range chineseFontPaths {
-		if _, err := os.Stat(fontPath); err == nil {
-			fontBytes, err := os.ReadFile(fontPath)
-			if err == nil {
-				// TTC 檔案需要特殊處理，先嘗試解析
-				ttf, err = truetype.Parse(fontBytes)
-				if err == nil {
-					fontLoaded = true
-					break
-				}
-			}
-		}
-	}
-
-	// 如果找不到中文字型，使用預設字型
-	if !fontLoaded {
-		ttf, err = truetype.Parse(goregular.TTF)
-		if err != nil {
-			return nil, fmt.Errorf("載入字型失敗: %v", err)
-		}
+	// 載入字型 - 使用 go-findfont 動態查找支援中文的字型
+	ttf, err := loadChineseFont()
+	if err != nil {
+		return nil, fmt.Errorf("載入字型失敗: %v", err)
 	}
 
 	// 建立 freetype context
@@ -500,16 +488,14 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 		return nil, fmt.Errorf("無營收資料可生成圖表")
 	}
 
-	config := DefaultChartConfig()
 	// 圖表設定
-	config = ChartConfig{
-		Title:            fmt.Sprintf("%s 月營收", stockName),
-		Width:            1400, // 增加寬度以容納更多資訊
-		Height:           700,  // 增加高度
-		ShowGrid:         true,
-		ShowLegend:       true,
-		ChartType:        "combo", // 組合圖表
-		chineseFontPaths: config.chineseFontPaths,
+	config := ChartConfig{
+		Title:      fmt.Sprintf("%s 月營收", stockName),
+		Width:      1400, // 增加寬度以容納更多資訊
+		Height:     700,  // 增加高度
+		ShowGrid:   true,
+		ShowLegend: true,
+		ChartType:  "combo", // 組合圖表
 	}
 
 	// 建立圖片
@@ -518,30 +504,10 @@ func GenerateRevenueChartPNG(data []RevenueChartData, stockName string) ([]byte,
 	// 填充淺灰色背景
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{245, 245, 245, 255}}, image.Point{}, draw.Src) // 淺灰色背景
 
-	// 載入字型
-	var ttf *truetype.Font
-	var err error
-
-	fontLoaded := false
-	for _, fontPath := range config.chineseFontPaths {
-		if _, err := os.Stat(fontPath); err == nil {
-			fontBytes, err := os.ReadFile(fontPath)
-			if err == nil {
-				ttf, err = truetype.Parse(fontBytes)
-				if err == nil {
-					fontLoaded = true
-					break
-				}
-			}
-		}
-	}
-
-	// 如果找不到中文字型，使用預設字型
-	if !fontLoaded {
-		ttf, err = truetype.Parse(goregular.TTF)
-		if err != nil {
-			return nil, fmt.Errorf("載入字型失敗: %v", err)
-		}
+	// 載入字型 - 使用 go-findfont 動態查找支援中文的字型
+	ttf, err := loadChineseFont()
+	if err != nil {
+		return nil, fmt.Errorf("載入字型失敗: %v", err)
 	}
 
 	// 建立 freetype context
@@ -848,26 +814,10 @@ func GenerateCandlestickChartPNG(data []CandlestickData, stockName string, symbo
 	img := image.NewRGBA(image.Rect(0, 0, config.Width, config.Height))
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
 
-	var ttf *truetype.Font
-	var err error
-	fontLoaded := false
-	for _, fontPath := range config.chineseFontPaths {
-		if _, err := os.Stat(fontPath); err == nil {
-			fontBytes, err := os.ReadFile(fontPath)
-			if err == nil {
-				ttf, err = truetype.Parse(fontBytes)
-				if err == nil {
-					fontLoaded = true
-					break
-				}
-			}
-		}
-	}
-	if !fontLoaded {
-		ttf, err = truetype.Parse(goregular.TTF)
-		if err != nil {
-			return nil, fmt.Errorf("載入字型失敗: %v", err)
-		}
+	// 載入字型 - 使用 go-findfont 動態查找支援中文的字型
+	ttf, err := loadChineseFont()
+	if err != nil {
+		return nil, fmt.Errorf("載入字型失敗: %v", err)
 	}
 
 	c := freetype.NewContext()
