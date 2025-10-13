@@ -147,7 +147,6 @@ func getResponse[T any](c *FugleAPI, url string) (response T, err error) {
 	if err != nil {
 		return response, fmt.Errorf("無法讀取 API 回應: %v", err)
 	}
-	fmt.Printf("Fugle API Response: %s\n", string(bodyBytes))
 
 	if err := json.Unmarshal(bodyBytes, &response); err != nil {
 		return response, fmt.Errorf("無法解析回應 JSON: %v", err)
