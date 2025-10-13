@@ -86,7 +86,11 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("初始化 LINE Bot 失敗: %v", err))
 	}
-	service := lineService.NewBotService(botClient)
+
+	// 建立 LINE Bot 服務層
+	lineSvc := lineService.NewLineService(stockService, userSubscriptionRepo)
+	lineCommandHandler := lineService.NewLineCommandHandler(botClient.Client, lineSvc, userService, userSubscriptionRepo)
+	service := lineService.NewBotService(botClient, lineCommandHandler, userService)
 	handler := linebot.NewLineBotHandler(service, botClient)
 	linebot.RegisterRoutes(router, handler)
 
