@@ -23,14 +23,34 @@ type FontLoader struct {
 func NewFontLoader() *FontLoader {
 	return &FontLoader{
 		FontPaths: []string{
+			// Linux 字型路徑
 			"/usr/share/fonts/custom/NotoSansTC-Bold.ttf",
 			"/usr/share/fonts/custom/NotoSansTC-VariableFont.ttf",
+			// Windows 字型路徑
+			"C:/Windows/Fonts/msjh.ttc",                  // 微軟正黑體
+			"C:/Windows/Fonts/msjhbd.ttc",                // 微軟正黑體粗體
+			"C:/Windows/Fonts/NotoSansCJKtc-Regular.otf", // Noto Sans CJK TC
+			"C:/Windows/Fonts/NotoSansCJKtc-Bold.otf",    // Noto Sans CJK TC 粗體
+			"C:/Windows/Fonts/simsun.ttc",                // 宋體
+			"C:/Windows/Fonts/simhei.ttf",                // 黑體
 		},
 		FontNames: []string{
+			// Linux 字型名稱
 			"Noto Sans TC Bold",
 			"Noto Sans CJK TC Bold",
 			"Noto Sans TC",
 			"Noto Sans CJK TC",
+			// Windows 字型名稱
+			"Microsoft JhengHei",         // 微軟正黑體
+			"Microsoft JhengHei Bold",    // 微軟正黑體粗體
+			"Microsoft JhengHei UI",      // 微軟正黑體 UI
+			"Microsoft JhengHei UI Bold", // 微軟正黑體 UI 粗體
+			"Noto Sans CJK TC",           // Noto Sans CJK TC
+			"Noto Sans CJK TC Bold",      // Noto Sans CJK TC 粗體
+			"SimSun",                     // 宋體
+			"SimHei",                     // 黑體
+			"PMingLiU",                   // 新細明體
+			"MingLiU",                    // 細明體
 		},
 	}
 }
@@ -39,28 +59,22 @@ func NewFontLoader() *FontLoader {
 func (fl *FontLoader) LoadChineseFont() (*truetype.Font, error) {
 	// 先嘗試直接路徑載入
 	for _, path := range fl.FontPaths {
-		logger.Log.Info("嘗試載入字型", zap.String("path", path))
+		// logger.Log.Info("嘗試載入字型", zap.String("path", path))
 		if font, err := fl.loadFontFromPath(path); err == nil {
-			logger.Log.Info("成功載入字型", zap.String("path", path))
+			// logger.Log.Info("成功載入字型", zap.String("path", path))
 			return font, nil
-		} else {
-			logger.Log.Warn("字型載入失敗", zap.String("path", path), zap.Error(err))
 		}
-	}
 
-	// 再嘗試使用字型名稱查找 (優先粗體)
-	for _, name := range fl.FontNames {
-		logger.Log.Info("嘗試查找字型", zap.String("name", name))
-		if fontPath, err := findfont.Find(name); err == nil {
-			logger.Log.Info("找到字型路徑", zap.String("name", name), zap.String("path", fontPath))
-			if font, err := fl.loadFontFromPath(fontPath); err == nil {
-				logger.Log.Info("成功載入字型", zap.String("name", name), zap.String("path", fontPath))
-				return font, nil
-			} else {
-				logger.Log.Warn("字型載入失敗", zap.String("name", name), zap.String("path", fontPath), zap.Error(err))
+		// 再嘗試使用字型名稱查找 (優先粗體)
+		for _, name := range fl.FontNames {
+			// logger.Log.Info("嘗試查找字型", zap.String("name", name))
+			if fontPath, err := findfont.Find(name); err == nil {
+				// logger.Log.Info("找到字型路徑", zap.String("name", name), zap.String("path", fontPath))
+				if font, err := fl.loadFontFromPath(fontPath); err == nil {
+					//logger.Log.Info("成功載入字型", zap.String("name", name), zap.String("path", fontPath))
+					return font, nil
+				}
 			}
-		} else {
-			logger.Log.Warn("找不到字型", zap.String("name", name), zap.Error(err))
 		}
 	}
 
