@@ -1,6 +1,6 @@
 package dto
 
-//股票即時報價
+// 股票即時報價
 type FugleStockQuoteRequestDto struct {
 	// 股票代碼
 	Symbol string `json:"symbol"`
