@@ -3,9 +3,9 @@ package twstock
 import (
 	"time"
 
-	cnyesInfraDto "stock-bot/internal/infrastructure/cnyes/dto"
-	stockDto "stock-bot/internal/service/twstock/dto"
-	"stock-bot/pkg/imageutil"
+	cnyesInfraDto "github.com/tian841224/stock-bot/internal/infrastructure/cnyes/dto"
+	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
+	"github.com/tian841224/stock-bot/pkg/imageutil"
 )
 
 // ========== 轉換格式相關方法 ==========

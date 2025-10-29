@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"stock-bot/internal/domain/stock"
+	"github.com/tian841224/stock-bot/internal/domain/stock"
 )
 
 // StockPerformance 股票績效

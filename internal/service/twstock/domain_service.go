@@ -1,9 +1,9 @@
 package twstock
 
 import (
-	"stock-bot/internal/domain/stock"
-	"stock-bot/internal/domain/stock/mappers"
-	"stock-bot/internal/domain/stock/services"
+	"github.com/tian841224/stock-bot/internal/domain/stock"
+	"github.com/tian841224/stock-bot/internal/domain/stock/mappers"
+	"github.com/tian841224/stock-bot/internal/domain/stock/services"
 )
 
 // DomainService 領域服務包裝器

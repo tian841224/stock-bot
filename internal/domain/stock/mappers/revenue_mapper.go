@@ -3,9 +3,9 @@ package mappers
 import (
 	"time"
 
-	"stock-bot/internal/domain/stock"
-	cnyesDto "stock-bot/internal/infrastructure/cnyes/dto"
-	stockDto "stock-bot/internal/service/twstock/dto"
+	"github.com/tian841224/stock-bot/internal/domain/stock"
+	cnyesDto "github.com/tian841224/stock-bot/internal/infrastructure/cnyes/dto"
+	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
 )
 
 // RevenueMapper 營收資料轉換器

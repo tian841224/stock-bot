@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"stock-bot/internal/infrastructure/finmindtrade/dto"
-	fugleDto "stock-bot/internal/infrastructure/fugle/dto"
-	twseDto "stock-bot/internal/infrastructure/twse/dto"
-	stockDto "stock-bot/internal/service/twstock/dto"
-	"stock-bot/pkg/logger"
-	"stock-bot/pkg/utils"
+	"github.com/tian841224/stock-bot/internal/infrastructure/finmindtrade/dto"
+	fugleDto "github.com/tian841224/stock-bot/internal/infrastructure/fugle/dto"
+	twseDto "github.com/tian841224/stock-bot/internal/infrastructure/twse/dto"
+	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
+	"github.com/tian841224/stock-bot/pkg/logger"
+	"github.com/tian841224/stock-bot/pkg/utils"
 
 	"go.uber.org/zap"
 )

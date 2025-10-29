@@ -1,11 +1,11 @@
 package twstock
 
 import (
-	"stock-bot/internal/infrastructure/cnyes"
-	"stock-bot/internal/infrastructure/finmindtrade"
-	"stock-bot/internal/infrastructure/fugle"
-	"stock-bot/internal/infrastructure/twse"
-	"stock-bot/internal/repository"
+	"github.com/tian841224/stock-bot/internal/infrastructure/cnyes"
+	"github.com/tian841224/stock-bot/internal/infrastructure/finmindtrade"
+	"github.com/tian841224/stock-bot/internal/infrastructure/fugle"
+	"github.com/tian841224/stock-bot/internal/infrastructure/twse"
+	"github.com/tian841224/stock-bot/internal/repository"
 )
 
 // StockService 股票服務

@@ -3,10 +3,10 @@ package mappers
 import (
 	"time"
 
-	"stock-bot/internal/domain/stock"
-	cnyesDto "stock-bot/internal/infrastructure/cnyes/dto"
-	finmindDto "stock-bot/internal/infrastructure/finmindtrade/dto"
-	stockDto "stock-bot/internal/service/twstock/dto"
+	"github.com/tian841224/stock-bot/internal/domain/stock"
+	cnyesDto "github.com/tian841224/stock-bot/internal/infrastructure/cnyes/dto"
+	finmindDto "github.com/tian841224/stock-bot/internal/infrastructure/finmindtrade/dto"
+	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
 )
 
 // StockMapper 股票資料轉換器

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"stock-bot/internal/domain/stock"
-	stockDto "stock-bot/internal/service/twstock/dto"
+	"github.com/tian841224/stock-bot/internal/domain/stock"
+	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
 )
 
 // FormatterService 格式化服務

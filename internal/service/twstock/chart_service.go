@@ -3,10 +3,10 @@ package twstock
 import (
 	"fmt"
 
-	fugleDto "stock-bot/internal/infrastructure/fugle/dto"
-	stockDto "stock-bot/internal/service/twstock/dto"
-	"stock-bot/pkg/imageutil"
-	"stock-bot/pkg/logger"
+	fugleDto "github.com/tian841224/stock-bot/internal/infrastructure/fugle/dto"
+	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
+	"github.com/tian841224/stock-bot/pkg/imageutil"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"go.uber.org/zap"
 )

@@ -3,8 +3,8 @@ package twstock
 import (
 	"fmt"
 
-	twseDto "stock-bot/internal/infrastructure/twse/dto"
-	"stock-bot/pkg/logger"
+	twseDto "github.com/tian841224/stock-bot/internal/infrastructure/twse/dto"
+	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"go.uber.org/zap"
 )
