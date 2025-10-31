@@ -1,4 +1,4 @@
-package line
+package linebot
 
 import (
 	"bytes"
@@ -44,7 +44,7 @@ func NewLineCommandHandler(
 }
 
 // CommandStart 處理 /start 命令
-func (c *LineCommandHandler) CommandStart(userID, replyToken string) error {
+func (c *LineCommandHandler) CommandStart(replyToken string) error {
 	text := `台股機器人指令指南🤖
 
 📊 圖表指令
@@ -77,36 +77,36 @@ func (c *LineCommandHandler) CommandStart(userID, replyToken string) error {
 /d 2330 2025-01-15 - 查詢台積電指定日期股價
 /m 3 - 查詢最新3筆大盤資訊`
 
-	return c.sendMessage(userID, replyToken, text)
+	return c.sendMessage(replyToken, text)
 }
 
 // 處理 /p 命令 - 股票績效圖表 (折線圖)
-func (c *LineCommandHandler) CommandPerformanceChart(userID, replyToken, symbol string) error {
+func (c *LineCommandHandler) CommandPerformanceChart(replyToken, symbol string) error {
 	if symbol == "" {
-		return c.sendMessage(userID, replyToken, "請輸入股票代號")
+		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
 
 	// 取得績效圖表資料
 	chartData, caption, err := c.lineService.GetStockPerformanceWithChart(symbol, "line")
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
 	// 檢查是否有圖表資料
 	if len(chartData) == 0 {
 		// 如果沒有圖表資料，發送文字版本
-		return c.sendMessage(userID, replyToken, caption)
+		return c.sendMessage(replyToken, caption)
 	}
 
 	// 發送圖表
-	return c.sendPhoto(userID, replyToken, chartData, caption)
+	return c.sendPhoto(replyToken, chartData, caption)
 }
 
 // 處理 /d 命令 - 股價詳細資訊（支援日期查詢）
-func (c *LineCommandHandler) CommandTodayStockPrice(userID, replyToken, symbol, date string) error {
+func (c *LineCommandHandler) CommandTodayStockPrice(replyToken, symbol, date string) error {
 	// 輸入驗證
 	if symbol == "" {
-		return c.sendMessage(userID, replyToken, "請輸入股票代號\n\n使用方式：\n/d 股票代號 - 查詢今日股價\n/d 股票代號 2025-09-01 - 查詢指定日期股價")
+		return c.sendMessage(replyToken, "請輸入股票代號\n\n使用方式：\n/d 股票代號 - 查詢今日股價\n/d 股票代號 2025-09-01 - 查詢指定日期股價")
 	}
 
 	var message string
@@ -116,7 +116,7 @@ func (c *LineCommandHandler) CommandTodayStockPrice(userID, replyToken, symbol, 
 	if date != "" {
 		// 驗證日期格式
 		if !c.isValidDateFormat(date) {
-			return c.sendMessage(userID, replyToken, "日期格式錯誤，請使用 YYYY-MM-DD 格式\n例如：2025-09-01")
+			return c.sendMessage(replyToken, "日期格式錯誤，請使用 YYYY-MM-DD 格式\n例如：2025-09-01")
 		}
 		// 查詢指定日期股價
 		message, err = c.lineService.GetStockPriceByDate(symbol, date)
@@ -125,100 +125,100 @@ func (c *LineCommandHandler) CommandTodayStockPrice(userID, replyToken, symbol, 
 	}
 
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
 	// 發送回應
-	return c.sendMessage(userID, replyToken, message)
+	return c.sendMessage(replyToken, message)
 }
 
 // 處理 /k 命令 - 歷史K線圖
-func (c *LineCommandHandler) CommandHistoricalCandles(userID, replyToken, symbol string) error {
+func (c *LineCommandHandler) CommandHistoricalCandles(replyToken, symbol string) error {
 	if symbol == "" {
-		return c.sendMessage(userID, replyToken, "請輸入股票代號")
+		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
 
 	chartData, caption, err := c.lineService.GetStockHistoricalCandlesChart(symbol)
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
-	return c.sendPhoto(userID, replyToken, chartData, caption)
+	return c.sendPhoto(replyToken, chartData, caption)
 }
 
 // 處理 /n 命令 - 股票新聞
-func (c *LineCommandHandler) CommandNews(userID, replyToken, symbol string) error {
+func (c *LineCommandHandler) CommandNews(replyToken, symbol string) error {
 	if symbol == "" {
-		return c.sendMessage(userID, replyToken, "請輸入股票代號")
+		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
 
 	// 取得新聞資料
 	newsMessage, err := c.lineService.GetTaiwanStockNews(symbol)
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
-	return c.sendMessageWithButtons(userID, replyToken, newsMessage.Text, newsMessage.Buttons)
+	return c.sendMessageWithButtons(replyToken, newsMessage.Text, newsMessage.Buttons)
 }
 
 // 處理 /m 命令 - 大盤資訊
-func (c *LineCommandHandler) CommandDailyMarketInfo(userID, replyToken string, count int) error {
+func (c *LineCommandHandler) CommandDailyMarketInfo(replyToken string, count int) error {
 	// 呼叫業務邏輯
 	messageText, err := c.lineService.GetDailyMarketInfo(count)
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
 	// 發送回應
-	return c.sendMessage(userID, replyToken, messageText)
+	return c.sendMessage(replyToken, messageText)
 }
 
 // 處理 /t 命令 - 交易量前20名
-func (c *LineCommandHandler) CommandTopVolumeItems(userID, replyToken string) error {
+func (c *LineCommandHandler) CommandTopVolumeItems(replyToken string) error {
 	// 取得交易量前20名資料
 	messageText, err := c.lineService.GetTopVolumeItemsFormatted()
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
-	return c.sendMessage(userID, replyToken, messageText)
+	return c.sendMessage(replyToken, messageText)
 }
 
 // 處理 /i 命令 - 股票資訊（可指定日期）
-func (c *LineCommandHandler) CommandStockInfo(userID, replyToken, symbol, date string) error {
+func (c *LineCommandHandler) CommandStockInfo(replyToken, symbol, date string) error {
 	if symbol == "" {
-		return c.sendMessage(userID, replyToken, "請輸入股票代號")
+		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
 
 	// 取得股票資訊
 	message, err := c.lineService.GetStockInfo(symbol)
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
-	return c.sendMessage(userID, replyToken, message)
+	return c.sendMessage(replyToken, message)
 }
 
 // 處理 /r 命令 - 股票財報
-func (c *LineCommandHandler) CommandRevenue(userID, replyToken, symbol string) error {
+func (c *LineCommandHandler) CommandRevenue(replyToken, symbol string) error {
 	if symbol == "" {
-		return c.sendMessage(userID, replyToken, "請輸入股票代碼")
+		return c.sendMessage(replyToken, "請輸入股票代碼")
 	}
 
 	chartData, caption, err := c.lineService.GetStockRevenueWithChart(symbol)
 
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
 	// 檢查是否有圖表資料
 	if len(chartData) == 0 {
 		// 如果沒有圖表資料，發送文字版本
-		return c.sendMessage(userID, replyToken, caption)
+		return c.sendMessage(replyToken, caption)
 	}
 
 	// 發送圖表
-	return c.sendPhoto(userID, replyToken, chartData, caption)
+	return c.sendPhoto(replyToken, chartData, caption)
 }
 
 // 處理 /sub 命令 - 訂閱功能
@@ -235,14 +235,14 @@ func (c *LineCommandHandler) CommandUnsubscribe(userID, replyToken, item string)
 func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item, status string) error {
 	subscriptionItem, exists := c.subscriptionItemMap[item]
 	if !exists {
-		return c.sendMessage(userID, replyToken, fmt.Sprintf("無效的訂閱項目: %s", item))
+		return c.sendMessage(replyToken, fmt.Sprintf("無效的訂閱項目: %s", item))
 	}
 
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(userID, models.UserTypeLine)
 	if err != nil {
 		logger.Log.Error("取得使用者失敗", zap.Error(err))
-		return c.sendMessage(userID, replyToken, "無法取得使用者")
+		return c.sendMessage(replyToken, "無法取得使用者")
 	}
 
 	// 檢查是否已經有此訂閱項目
@@ -252,78 +252,78 @@ func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item, st
 		if status == "active" {
 			if err := c.userSubscriptionRepo.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
 				logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
-				return c.sendMessage(userID, replyToken, "訂閱失敗，請稍後再試")
+				return c.sendMessage(replyToken, "訂閱失敗，請稍後再試")
 			}
-			return c.sendMessage(userID, replyToken, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
+			return c.sendMessage(replyToken, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
 		} else {
-			return c.sendMessage(userID, replyToken, fmt.Sprintf("未訂閱此項目：%s", subscriptionItem.GetName()))
+			return c.sendMessage(replyToken, fmt.Sprintf("未訂閱此項目：%s", subscriptionItem.GetName()))
 		}
 	}
 
 	// 如果狀態相同，不需要更新
 	if existingSubscription.Status == status {
 		if status == "active" {
-			return c.sendMessage(userID, replyToken, fmt.Sprintf("已訂閱：%s", subscriptionItem.GetName()))
+			return c.sendMessage(replyToken, fmt.Sprintf("已訂閱：%s", subscriptionItem.GetName()))
 		} else {
-			return c.sendMessage(userID, replyToken, fmt.Sprintf("未訂閱此項目：%s", subscriptionItem.GetName()))
+			return c.sendMessage(replyToken, fmt.Sprintf("未訂閱此項目：%s", subscriptionItem.GetName()))
 		}
 	}
 
 	// 更新訂閱狀態
 	if err := c.userSubscriptionRepo.UpdateUserSubscriptionItem(user.ID, subscriptionItem, status); err != nil {
 		logger.Log.Error("更新訂閱狀態失敗", zap.Error(err))
-		return c.sendMessage(userID, replyToken, "操作失敗，請稍後再試")
+		return c.sendMessage(replyToken, "操作失敗，請稍後再試")
 	}
 
 	if status == "active" {
-		return c.sendMessage(userID, replyToken, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
+		return c.sendMessage(replyToken, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
 	} else {
-		return c.sendMessage(userID, replyToken, fmt.Sprintf("取消訂閱成功：%s", subscriptionItem.GetName()))
+		return c.sendMessage(replyToken, fmt.Sprintf("取消訂閱成功：%s", subscriptionItem.GetName()))
 	}
 }
 
 // 處理 /add 命令 - 新增股票訂閱
 func (c *LineCommandHandler) CommandAddStock(userID, replyToken, symbol string) error {
 	if symbol == "" {
-		return c.sendMessage(userID, replyToken, "請輸入股票代號")
+		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
 
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(userID, models.UserTypeLine)
 	if err != nil {
 		logger.Log.Error("取得使用者失敗", zap.Error(err))
-		return c.sendMessage(userID, replyToken, "無法取得使用者")
+		return c.sendMessage(replyToken, "無法取得使用者")
 	}
 
 	// 新增股票訂閱
 	message, err := c.lineService.AddUserStockSubscription(user.ID, symbol)
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
-	return c.sendMessage(userID, replyToken, message)
+	return c.sendMessage(replyToken, message)
 }
 
 // 處理 /del 命令 - 刪除股票訂閱
 func (c *LineCommandHandler) CommandDeleteStock(userID, replyToken, symbol string) error {
 	if symbol == "" {
-		return c.sendMessage(userID, replyToken, "請輸入股票代號")
+		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
 
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(userID, models.UserTypeLine)
 	if err != nil {
 		logger.Log.Error("取得使用者失敗", zap.Error(err))
-		return c.sendMessage(userID, replyToken, "無法取得使用者")
+		return c.sendMessage(replyToken, "無法取得使用者")
 	}
 
 	// 刪除股票訂閱
 	message, err := c.lineService.DeleteUserStockSubscription(user.ID, symbol)
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
-	return c.sendMessage(userID, replyToken, message)
+	return c.sendMessage(replyToken, message)
 }
 
 // 處理 /list 命令 - 列出訂閱項目
@@ -332,22 +332,22 @@ func (c *LineCommandHandler) CommandListSubscriptions(userID, replyToken string)
 	user, err := c.userService.GetUserByAccountID(userID, models.UserTypeLine)
 	if err != nil {
 		logger.Log.Error("取得使用者失敗", zap.Error(err))
-		return c.sendMessage(userID, replyToken, "無法取得使用者")
+		return c.sendMessage(replyToken, "無法取得使用者")
 	}
 
 	// 取得訂閱清單
 	messageText, err := c.lineService.GetUserSubscriptionList(user.ID)
 	if err != nil {
-		return c.sendMessage(userID, replyToken, err.Error())
+		return c.sendMessage(replyToken, err.Error())
 	}
 
-	return c.sendMessage(userID, replyToken, messageText)
+	return c.sendMessage(replyToken, messageText)
 }
 
 // 輔助方法
 
 // 發送訊息
-func (c *LineCommandHandler) sendMessage(userID, replyToken, text string) error {
+func (c *LineCommandHandler) sendMessage(replyToken, text string) error {
 	err := c.botClient.ReplyMessage(replyToken, text)
 	if err != nil {
 		logger.Log.Error("發送訊息失敗", zap.Error(err))
@@ -356,9 +356,9 @@ func (c *LineCommandHandler) sendMessage(userID, replyToken, text string) error 
 }
 
 // 發送帶有按鈕的訊息
-func (c *LineCommandHandler) sendMessageWithButtons(userID, replyToken, text string, buttons []linebot.TemplateAction) error {
+func (c *LineCommandHandler) sendMessageWithButtons(replyToken, text string, buttons []linebot.TemplateAction) error {
 	if len(buttons) == 0 {
-		return c.sendMessage(userID, replyToken, text)
+		return c.sendMessage(replyToken, text)
 	}
 
 	// 建立按鈕模板
@@ -374,11 +374,11 @@ func (c *LineCommandHandler) sendMessageWithButtons(userID, replyToken, text str
 }
 
 // 發送圖片
-func (c *LineCommandHandler) sendPhoto(userID, replyToken string, data []byte, caption string) error {
+func (c *LineCommandHandler) sendPhoto(replyToken string, data []byte, caption string) error {
 	// 如果沒有 ImgBB 客戶端，只發送文字訊息
 	if c.imgbbClient == nil {
 		logger.Log.Warn("ImgBB 客戶端未設定，只發送文字訊息")
-		return c.sendMessage(userID, replyToken, caption)
+		return c.sendMessage(replyToken, caption)
 	}
 
 	// 上傳圖片到 ImgBB
@@ -392,7 +392,7 @@ func (c *LineCommandHandler) sendPhoto(userID, replyToken string, data []byte, c
 	if err != nil {
 		logger.Log.Error("上傳圖片到 ImgBB 失敗", zap.Error(err))
 		// 如果上傳失敗，只發送文字訊息
-		return c.sendMessage(userID, replyToken, caption)
+		return c.sendMessage(replyToken, caption)
 	}
 
 	// 建立圖片訊息

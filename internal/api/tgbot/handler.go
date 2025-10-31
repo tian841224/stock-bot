@@ -4,8 +4,7 @@ import (
 	"net/http"
 
 	"github.com/tian841224/stock-bot/config"
-
-	"github.com/tian841224/stock-bot/internal/service/bot/tg"
+	tgService "github.com/tian841224/stock-bot/internal/service/bot/tg"
 	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -15,10 +14,10 @@ import (
 
 type TgHandler struct {
 	cfg              *config.Config
-	tgServiceHandler *tg.TgHandler
+	tgServiceHandler *tgService.TgServiceHandler
 }
 
-func NewTgHandler(cfg *config.Config, tgServiceHandler *tg.TgHandler) *TgHandler {
+func NewTgHandler(cfg *config.Config, tgServiceHandler *tgService.TgServiceHandler) *TgHandler {
 	return &TgHandler{cfg: cfg, tgServiceHandler: tgServiceHandler}
 }
 
@@ -48,8 +47,9 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 				logger.Log.Error("處理 Telegram 更新發生 panic", zap.Any("recover", r))
 			}
 		}()
+
 		if err := h.tgServiceHandler.ProcessUpdate(&u); err != nil {
-			logger.Log.Error("處理 Telegram 更新失敗", zap.Error(err), zap.Int("update_id", u.UpdateID))
+			logger.Log.Error("處理 Telegram 更新失敗", zap.Error(err))
 		}
 	}(update)
 }

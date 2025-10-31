@@ -2,7 +2,7 @@ package linebot
 
 import (
 	linebotInfra "github.com/tian841224/stock-bot/internal/infrastructure/linebot"
-	"github.com/tian841224/stock-bot/internal/service/bot/line"
+	lineService "github.com/tian841224/stock-bot/internal/service/bot/line"
 	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -12,12 +12,12 @@ import (
 
 // LineBotHandler 處理 webhook 請求
 type LineBotHandler struct {
-	service   *line.LineBotHandler
+	service   *lineService.LineServiceHandler
 	botClient *linebotInfra.LineBotClient
 }
 
 // NewLineBotHandler 創建 handler
-func NewLineBotHandler(service *line.LineBotHandler, botClient *linebotInfra.LineBotClient) *LineBotHandler {
+func NewLineBotHandler(service *lineService.LineServiceHandler, botClient *linebotInfra.LineBotClient) *LineBotHandler {
 	return &LineBotHandler{
 		service:   service,
 		botClient: botClient,

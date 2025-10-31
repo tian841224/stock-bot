@@ -95,7 +95,7 @@ func main() {
 		initResult.userService,
 		initResult.userSubscriptionRepo,
 	)
-	tgServiceHandler := tgService.NewTgHandler(tgCommandHandler, initResult.userService)
+	tgServiceHandler := tgService.NewTgServiceHandler(tgCommandHandler, initResult.userService)
 	tgHandler := tgbot.NewTgHandler(initResult.cfg, tgServiceHandler)
 	tgbot.RegisterRoutes(router, tgHandler, initResult.cfg.TELEGRAM_BOT_WEBHOOK_PATH)
 
