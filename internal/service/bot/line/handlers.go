@@ -1,4 +1,4 @@
-package line
+package linebot
 
 import (
 	"strconv"
@@ -15,8 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// LineBotHandler 處理對話邏輯
-type LineBotHandler struct {
+// LineServiceHandler 處理對話邏輯
+type LineServiceHandler struct {
 	botClient      *linebotInfra.LineBotClient
 	commandHandler *LineCommandHandler
 	userService    user.UserService
@@ -27,8 +27,8 @@ func NewBotService(
 	botClient *linebotInfra.LineBotClient,
 	commandHandler *LineCommandHandler,
 	userService user.UserService,
-) *LineBotHandler {
-	return &LineBotHandler{
+) *LineServiceHandler {
+	return &LineServiceHandler{
 		botClient:      botClient,
 		commandHandler: commandHandler,
 		userService:    userService,
@@ -36,7 +36,7 @@ func NewBotService(
 }
 
 // HandleTextMessage 處理文字訊息
-func (s *LineBotHandler) HandleTextMessage(event *linebot.Event, message *linebot.TextMessage) error {
+func (s *LineServiceHandler) HandleTextMessage(event *linebot.Event, message *linebot.TextMessage) error {
 	if message.Text == "" {
 		return nil
 	}
@@ -71,13 +71,13 @@ func (s *LineBotHandler) HandleTextMessage(event *linebot.Event, message *linebo
 
 	switch command {
 	case "/start":
-		return s.commandHandler.CommandStart(userID, event.ReplyToken)
+		return s.commandHandler.CommandStart(event.ReplyToken)
 	case "/k":
 		// 歷史K線圖
-		return s.commandHandler.CommandHistoricalCandles(userID, event.ReplyToken, arg1)
+		return s.commandHandler.CommandHistoricalCandles(event.ReplyToken, arg1)
 	case "/p":
 		// 績效圖表
-		return s.commandHandler.CommandPerformanceChart(userID, event.ReplyToken, arg1)
+		return s.commandHandler.CommandPerformanceChart(event.ReplyToken, arg1)
 	case "/d":
 		// 今日股價
 		if arg2 == "" {
@@ -96,19 +96,19 @@ func (s *LineBotHandler) HandleTextMessage(event *linebot.Event, message *linebo
 				arg2 = now.Format("2006-01-02")
 			}
 		}
-		return s.commandHandler.CommandTodayStockPrice(userID, event.ReplyToken, arg1, arg2)
+		return s.commandHandler.CommandTodayStockPrice(event.ReplyToken, arg1, arg2)
 	case "/t":
 		// 交易量前20名
-		return s.commandHandler.CommandTopVolumeItems(userID, event.ReplyToken)
+		return s.commandHandler.CommandTopVolumeItems(event.ReplyToken)
 	case "/i":
 		// 股票資訊
-		return s.commandHandler.CommandStockInfo(userID, event.ReplyToken, arg1, arg2)
+		return s.commandHandler.CommandStockInfo(event.ReplyToken, arg1, arg2)
 	case "/r":
 		// 財報
-		return s.commandHandler.CommandRevenue(userID, event.ReplyToken, arg1)
+		return s.commandHandler.CommandRevenue(event.ReplyToken, arg1)
 	case "/n":
 		// 新聞
-		return s.commandHandler.CommandNews(userID, event.ReplyToken, arg1)
+		return s.commandHandler.CommandNews(event.ReplyToken, arg1)
 	case "/m":
 		// 大盤資訊
 		count := 1 // 預設顯示1筆
@@ -117,7 +117,7 @@ func (s *LineBotHandler) HandleTextMessage(event *linebot.Event, message *linebo
 				count = parsedCount
 			}
 		}
-		return s.commandHandler.CommandDailyMarketInfo(userID, event.ReplyToken, count)
+		return s.commandHandler.CommandDailyMarketInfo(event.ReplyToken, count)
 	case "/sub":
 		// 訂閱
 		return s.commandHandler.CommandSubscribe(userID, event.ReplyToken, arg1)

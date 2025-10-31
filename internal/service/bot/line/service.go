@@ -1,4 +1,4 @@
-package line
+package linebot
 
 import (
 	"fmt"
@@ -388,24 +388,6 @@ func (s *LineService) formatTimeFromTimestamp(timestamp int64) string {
 	return t.Format("2006/01")
 }
 
-// formatNumber 格式化數字，加上千分位分隔符
-func (s *LineService) formatNumber(num int64) string {
-	str := fmt.Sprintf("%d", num)
-	n := len(str)
-	if n <= 3 {
-		return str
-	}
-
-	result := ""
-	for i, char := range str {
-		if i > 0 && (n-i)%3 == 0 {
-			result += ","
-		}
-		result += string(char)
-	}
-	return result
-}
-
 // 格式化股票績效
 func (s *LineService) formatPerformanceTable(stockName, symbol string, performanceData *stockDto.StockPerformanceResponseDto) string {
 	result := ""
@@ -514,30 +496,6 @@ func (s *LineService) formatStockInfoMessage(stockInfo *stockDto.StockQuoteInfo)
 	message.WriteString("\n淨利率: ")
 	message.WriteString(fmt.Sprintf("%.2f%%", stockInfo.NetMargin))
 	return message.String()
-}
-
-// 轉換時間範圍顯示文字
-func (s *LineService) convertTimeRange(timeRange string) string {
-	switch timeRange {
-	case "h":
-		return "分時"
-	case "d":
-		return "日K"
-	case "w":
-		return "週K"
-	case "m":
-		return "月K"
-	case "5m":
-		return "5分"
-	case "15m":
-		return "15分"
-	case "30m":
-		return "30分"
-	case "60m":
-		return "60分"
-	default:
-		return "日K" // 預設值
-	}
 }
 
 // LineStockNewsMessage LINE BOT 股票新聞訊息結構

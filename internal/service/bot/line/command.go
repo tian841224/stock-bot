@@ -1,4 +1,4 @@
-package line
+package linebot
 
 import (
 	"bytes"
@@ -44,7 +44,7 @@ func NewLineCommandHandler(
 }
 
 // CommandStart 處理 /start 命令
-func (c *LineCommandHandler) CommandStart(userID, replyToken string) error {
+func (c *LineCommandHandler) CommandStart(replyToken string) error {
 	text := `台股機器人指令指南🤖
 
 📊 圖表指令
@@ -81,7 +81,7 @@ func (c *LineCommandHandler) CommandStart(userID, replyToken string) error {
 }
 
 // 處理 /p 命令 - 股票績效圖表 (折線圖)
-func (c *LineCommandHandler) CommandPerformanceChart(userID, replyToken, symbol string) error {
+func (c *LineCommandHandler) CommandPerformanceChart(replyToken, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
@@ -99,11 +99,11 @@ func (c *LineCommandHandler) CommandPerformanceChart(userID, replyToken, symbol 
 	}
 
 	// 發送圖表
-	return c.sendPhoto(userID, replyToken, chartData, caption)
+	return c.sendPhoto(replyToken, chartData, caption)
 }
 
 // 處理 /d 命令 - 股價詳細資訊（支援日期查詢）
-func (c *LineCommandHandler) CommandTodayStockPrice(userID, replyToken, symbol, date string) error {
+func (c *LineCommandHandler) CommandTodayStockPrice(replyToken, symbol, date string) error {
 	// 輸入驗證
 	if symbol == "" {
 		return c.sendMessage(replyToken, "請輸入股票代號\n\n使用方式：\n/d 股票代號 - 查詢今日股價\n/d 股票代號 2025-09-01 - 查詢指定日期股價")
@@ -133,7 +133,7 @@ func (c *LineCommandHandler) CommandTodayStockPrice(userID, replyToken, symbol, 
 }
 
 // 處理 /k 命令 - 歷史K線圖
-func (c *LineCommandHandler) CommandHistoricalCandles(userID, replyToken, symbol string) error {
+func (c *LineCommandHandler) CommandHistoricalCandles(replyToken, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
@@ -143,11 +143,11 @@ func (c *LineCommandHandler) CommandHistoricalCandles(userID, replyToken, symbol
 		return c.sendMessage(replyToken, err.Error())
 	}
 
-	return c.sendPhoto(userID, replyToken, chartData, caption)
+	return c.sendPhoto(replyToken, chartData, caption)
 }
 
 // 處理 /n 命令 - 股票新聞
-func (c *LineCommandHandler) CommandNews(userID, replyToken, symbol string) error {
+func (c *LineCommandHandler) CommandNews(replyToken, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
@@ -158,11 +158,11 @@ func (c *LineCommandHandler) CommandNews(userID, replyToken, symbol string) erro
 		return c.sendMessage(replyToken, err.Error())
 	}
 
-	return c.sendMessageWithButtons(userID, replyToken, newsMessage.Text, newsMessage.Buttons)
+	return c.sendMessageWithButtons(replyToken, newsMessage.Text, newsMessage.Buttons)
 }
 
 // 處理 /m 命令 - 大盤資訊
-func (c *LineCommandHandler) CommandDailyMarketInfo(userID, replyToken string, count int) error {
+func (c *LineCommandHandler) CommandDailyMarketInfo(replyToken string, count int) error {
 	// 呼叫業務邏輯
 	messageText, err := c.lineService.GetDailyMarketInfo(count)
 	if err != nil {
@@ -174,7 +174,7 @@ func (c *LineCommandHandler) CommandDailyMarketInfo(userID, replyToken string, c
 }
 
 // 處理 /t 命令 - 交易量前20名
-func (c *LineCommandHandler) CommandTopVolumeItems(userID, replyToken string) error {
+func (c *LineCommandHandler) CommandTopVolumeItems(replyToken string) error {
 	// 取得交易量前20名資料
 	messageText, err := c.lineService.GetTopVolumeItemsFormatted()
 	if err != nil {
@@ -185,7 +185,7 @@ func (c *LineCommandHandler) CommandTopVolumeItems(userID, replyToken string) er
 }
 
 // 處理 /i 命令 - 股票資訊（可指定日期）
-func (c *LineCommandHandler) CommandStockInfo(userID, replyToken, symbol, date string) error {
+func (c *LineCommandHandler) CommandStockInfo(replyToken, symbol, date string) error {
 	if symbol == "" {
 		return c.sendMessage(replyToken, "請輸入股票代號")
 	}
@@ -200,7 +200,7 @@ func (c *LineCommandHandler) CommandStockInfo(userID, replyToken, symbol, date s
 }
 
 // 處理 /r 命令 - 股票財報
-func (c *LineCommandHandler) CommandRevenue(userID, replyToken, symbol string) error {
+func (c *LineCommandHandler) CommandRevenue(replyToken, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(replyToken, "請輸入股票代碼")
 	}
@@ -218,7 +218,7 @@ func (c *LineCommandHandler) CommandRevenue(userID, replyToken, symbol string) e
 	}
 
 	// 發送圖表
-	return c.sendPhoto(userID, replyToken, chartData, caption)
+	return c.sendPhoto(replyToken, chartData, caption)
 }
 
 // 處理 /sub 命令 - 訂閱功能
@@ -356,7 +356,7 @@ func (c *LineCommandHandler) sendMessage(replyToken, text string) error {
 }
 
 // 發送帶有按鈕的訊息
-func (c *LineCommandHandler) sendMessageWithButtons(userID, replyToken, text string, buttons []linebot.TemplateAction) error {
+func (c *LineCommandHandler) sendMessageWithButtons(replyToken, text string, buttons []linebot.TemplateAction) error {
 	if len(buttons) == 0 {
 		return c.sendMessage(replyToken, text)
 	}
@@ -374,7 +374,7 @@ func (c *LineCommandHandler) sendMessageWithButtons(userID, replyToken, text str
 }
 
 // 發送圖片
-func (c *LineCommandHandler) sendPhoto(userID, replyToken string, data []byte, caption string) error {
+func (c *LineCommandHandler) sendPhoto(replyToken string, data []byte, caption string) error {
 	// 如果沒有 ImgBB 客戶端，只發送文字訊息
 	if c.imgbbClient == nil {
 		logger.Log.Warn("ImgBB 客戶端未設定，只發送文字訊息")

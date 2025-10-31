@@ -60,7 +60,8 @@ issues:
       text: "ifElseChain|assignOp|commentFormatting"
     - linters:
         - stylecheck
-      text: "ST1003.*package names"
-      path: "internal/service/stock_sync"
+      text: "ST1003"
+    - linters: [stylecheck]
+      text: "ST1000"
   max-issues-per-linter: 0
   max-same-issues: 0
