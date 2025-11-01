@@ -1,4 +1,5 @@
-package tg
+// Package tg 提供 Telegram Bot 的處理器功能
+package tgbot
 
 import (
 	"strconv"
@@ -13,19 +14,19 @@ import (
 	"go.uber.org/zap"
 )
 
-type TgHandler struct {
+type TgServiceHandler struct {
 	commandHandler *TgCommandHandler
 	userService    user.UserService
 }
 
-func NewTgHandler(commandHandler *TgCommandHandler, userService user.UserService) *TgHandler {
-	return &TgHandler{
+func NewTgServiceHandler(commandHandler *TgCommandHandler, userService user.UserService) *TgServiceHandler {
+	return &TgServiceHandler{
 		commandHandler: commandHandler,
 		userService:    userService,
 	}
 }
 
-func (s *TgHandler) ProcessUpdate(update *tgbotapi.Update) error {
+func (s *TgServiceHandler) ProcessUpdate(update *tgbotapi.Update) error {
 	if update.Message == nil {
 		return nil
 	}
@@ -33,7 +34,7 @@ func (s *TgHandler) ProcessUpdate(update *tgbotapi.Update) error {
 	return s.processCommand(update.Message)
 }
 
-func (s *TgHandler) processCommand(message *tgbotapi.Message) error {
+func (s *TgServiceHandler) processCommand(message *tgbotapi.Message) error {
 	if message.Text == "" {
 		return nil
 	}

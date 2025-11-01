@@ -1,6 +1,7 @@
-package tg
+package tgbot
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type TgCommandHandler struct {
@@ -38,7 +40,13 @@ func NewTgCommandHandler(
 	}
 }
 
-// commandStart 處理 /start 命令
+// Subscription status constants
+const (
+	SubscriptionStatusActive   = true
+	SubscriptionStatusInactive = false
+)
+
+// CommandStart 處理 /start 命令
 func (c *TgCommandHandler) CommandStart(userID int64) error {
 	text := `台股機器人指令指南🤖
 
@@ -75,7 +83,7 @@ func (c *TgCommandHandler) CommandStart(userID int64) error {
 	return c.sendMessage(userID, text)
 }
 
-// 處理 /p 命令 - 股票績效圖表 (折線圖)
+// CommandPerformanceChart 處理 /p 命令 - 股票績效圖表 (折線圖)
 func (c *TgCommandHandler) CommandPerformanceChart(userID int64, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(userID, "請輸入股票代號")
@@ -97,7 +105,7 @@ func (c *TgCommandHandler) CommandPerformanceChart(userID int64, symbol string) 
 	return c.sendPhoto(userID, chartData, caption)
 }
 
-// 處理 /d 命令 - 股價詳細資訊（支援日期查詢）
+// CommandTodayStockPrice 處理 /d 命令 - 股價詳細資訊（支援日期查詢），
 func (c *TgCommandHandler) CommandTodayStockPrice(userID int64, symbol, date string) error {
 	// 輸入驗證
 	if symbol == "" {
@@ -127,7 +135,7 @@ func (c *TgCommandHandler) CommandTodayStockPrice(userID int64, symbol, date str
 	return c.sendMessageHTML(userID, message)
 }
 
-// 處理 /k 命令 - 歷史K線圖
+// CommandHistoricalCandles 處理 /k 命令 - 歷史K線圖
 func (c *TgCommandHandler) CommandHistoricalCandles(userID int64, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(userID, "請輸入股票代號")
@@ -141,7 +149,7 @@ func (c *TgCommandHandler) CommandHistoricalCandles(userID int64, symbol string)
 	return c.sendPhoto(userID, chartData, caption)
 }
 
-// 處理 /n 命令 - 股票新聞
+// CommandNews 處理 /n 命令 - 股票新聞
 func (c *TgCommandHandler) CommandNews(userID int64, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(userID, "請輸入股票代號")
@@ -156,7 +164,7 @@ func (c *TgCommandHandler) CommandNews(userID int64, symbol string) error {
 	return c.sendMessageWithKeyboard(userID, newsMessage.Text, newsMessage.InlineKeyboardMarkup)
 }
 
-// 處理 /m 命令 - 大盤資訊
+// CommandDailyMarketInfo 處理 /m 命令 - 大盤資訊
 func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error {
 	// 呼叫業務邏輯
 	messageText, err := c.tgService.GetDailyMarketInfo(count)
@@ -168,7 +176,7 @@ func (c *TgCommandHandler) CommandDailyMarketInfo(userID int64, count int) error
 	return c.sendMessageHTML(userID, messageText)
 }
 
-// 處理 /t 命令 - 交易量前20名
+// CommandTopVolumeItems 處理 /t 命令 - 交易量前20名
 func (c *TgCommandHandler) CommandTopVolumeItems(userID int64) error {
 	// 取得交易量前20名資料
 	messageText, err := c.tgService.GetTopVolumeItemsFormatted()
@@ -179,7 +187,7 @@ func (c *TgCommandHandler) CommandTopVolumeItems(userID int64) error {
 	return c.sendMessageHTML(userID, messageText)
 }
 
-// 處理 /i 命令 - 股票資訊（可指定日期）
+// CommandStockInfo 處理 /i 命令 - 股票資訊（可指定日期）
 func (c *TgCommandHandler) CommandStockInfo(userID int64, symbol, date string) error {
 	if symbol == "" {
 		return c.sendMessage(userID, "請輸入股票代號")
@@ -194,7 +202,7 @@ func (c *TgCommandHandler) CommandStockInfo(userID int64, symbol, date string) e
 	return c.sendMessageHTML(userID, message)
 }
 
-// 處理 /r 命令 - 股票財報
+// CommandRevenue 處理 /r 命令 - 股票財報
 func (c *TgCommandHandler) CommandRevenue(userID int64, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(userID, "請輸入股票代號")
@@ -216,18 +224,18 @@ func (c *TgCommandHandler) CommandRevenue(userID int64, symbol string) error {
 	return c.sendPhoto(userID, chartData, caption)
 }
 
-// 處理 /sub 命令 - 訂閱功能
+// CommandSubscribe 處理 /sub 命令 - 訂閱功能
 func (c *TgCommandHandler) CommandSubscribe(userID int64, item string) error {
-	return c.updateUserSubscription(userID, item, "active")
+	return c.updateUserSubscription(userID, item, true)
 }
 
-// 處理 /unsub 命令 - 取消訂閱功能
+// CommandUnsubscribe 處理 /unsub 命令 - 取消訂閱功能
 func (c *TgCommandHandler) CommandUnsubscribe(userID int64, item string) error {
-	return c.updateUserSubscription(userID, item, "inactive")
+	return c.updateUserSubscription(userID, item, false)
 }
 
-// updateUserSubscription 更新使用者訂閱狀態
-func (c *TgCommandHandler) updateUserSubscription(userID int64, item, status string) error {
+// UpdateUserSubscription 更新使用者訂閱狀態
+func (c *TgCommandHandler) updateUserSubscription(userID int64, item string, status bool) error {
 	subscriptionItem, exists := c.subscriptionItemMap[item]
 	if !exists {
 		return c.sendMessage(userID, fmt.Sprintf("無效的訂閱項目: %s", item))
@@ -241,27 +249,24 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item, status str
 	}
 
 	// 檢查是否已經有此訂閱項目
-	existingSubscription, err := c.userSubscriptionRepo.GetUserSubscriptionByItem(user.ID, subscriptionItem)
+	_, err = c.userSubscriptionRepo.GetUserSubscriptionByItem(user.ID, subscriptionItem)
 	if err != nil {
-		// 如果沒有找到訂閱項目，且是要訂閱，則新增
-		if status == "active" {
-			if err := c.userSubscriptionRepo.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
-				logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
-				return c.sendMessage(userID, "訂閱失敗，請稍後再試")
+		// 如果是記錄不存在
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 如果要訂閱，則新增
+			if status == SubscriptionStatusActive {
+				if err := c.userSubscriptionRepo.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
+					logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
+					return c.sendMessage(userID, "訂閱失敗，請稍後再試")
+				}
+				return c.sendMessage(userID, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
 			}
-			return c.sendMessage(userID, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
-		} else {
-			return c.sendMessage(userID, fmt.Sprintf("未訂閱此項目：%s", subscriptionItem.GetName()))
+			// 如果是要取消訂閱，但記錄不存在，表示尚未訂閱
+			return c.sendMessage(userID, fmt.Sprintf("您尚未訂閱：%s", subscriptionItem.GetName()))
 		}
-	}
-
-	// 如果狀態相同，不需要更新
-	if existingSubscription.Status == status {
-		if status == "active" {
-			return c.sendMessage(userID, fmt.Sprintf("已訂閱：%s", subscriptionItem.GetName()))
-		} else {
-			return c.sendMessage(userID, fmt.Sprintf("未訂閱此項目：%s", subscriptionItem.GetName()))
-		}
+		// 其他錯誤應該記錄並返回
+		logger.Log.Error("取得訂閱項目失敗", zap.Error(err))
+		return c.sendMessage(userID, "操作失敗，請稍後再試")
 	}
 
 	// 更新訂閱狀態
@@ -270,14 +275,14 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item, status str
 		return c.sendMessage(userID, "操作失敗，請稍後再試")
 	}
 
-	if status == "active" {
+	if status == SubscriptionStatusActive {
 		return c.sendMessage(userID, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
 	} else {
 		return c.sendMessage(userID, fmt.Sprintf("取消訂閱成功：%s", subscriptionItem.GetName()))
 	}
 }
 
-// 處理 /add 命令 - 新增股票訂閱
+// CommandAddStock 處理 /add 命令 - 新增股票訂閱
 func (c *TgCommandHandler) CommandAddStock(userID int64, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(userID, "請輸入股票代號")
@@ -299,7 +304,7 @@ func (c *TgCommandHandler) CommandAddStock(userID int64, symbol string) error {
 	return c.sendMessage(userID, message)
 }
 
-// 處理 /del 命令 - 刪除股票訂閱
+// CommandDeleteStock 處理 /del 命令 - 刪除股票訂閱
 func (c *TgCommandHandler) CommandDeleteStock(userID int64, symbol string) error {
 	if symbol == "" {
 		return c.sendMessage(userID, "請輸入股票代號")
@@ -321,7 +326,7 @@ func (c *TgCommandHandler) CommandDeleteStock(userID int64, symbol string) error
 	return c.sendMessage(userID, message)
 }
 
-// 處理 /list 命令 - 列出訂閱項目
+// CommandListSubscriptions 處理 /list 命令 - 列出訂閱項目
 func (c *TgCommandHandler) CommandListSubscriptions(userID int64) error {
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(strconv.FormatInt(userID, 10), models.UserTypeTelegram)
