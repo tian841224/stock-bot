@@ -38,6 +38,12 @@ func NewTgCommandHandler(
 	}
 }
 
+// Subscription status constants
+const (
+	SubscriptionStatusActive   = true
+	SubscriptionStatusInactive = false
+)
+
 // CommandStart 處理 /start 命令
 func (c *TgCommandHandler) CommandStart(userID int64) error {
 	text := `台股機器人指令指南🤖
@@ -218,16 +224,16 @@ func (c *TgCommandHandler) CommandRevenue(userID int64, symbol string) error {
 
 // CommandSubscribe 處理 /sub 命令 - 訂閱功能
 func (c *TgCommandHandler) CommandSubscribe(userID int64, item string) error {
-	return c.updateUserSubscription(userID, item, "active")
+	return c.updateUserSubscription(userID, item, true)
 }
 
 // CommandUnsubscribe 處理 /unsub 命令 - 取消訂閱功能
 func (c *TgCommandHandler) CommandUnsubscribe(userID int64, item string) error {
-	return c.updateUserSubscription(userID, item, "inactive")
+	return c.updateUserSubscription(userID, item, false)
 }
 
 // UpdateUserSubscription 更新使用者訂閱狀態
-func (c *TgCommandHandler) updateUserSubscription(userID int64, item, status string) error {
+func (c *TgCommandHandler) updateUserSubscription(userID int64, item string, status bool) error {
 	subscriptionItem, exists := c.subscriptionItemMap[item]
 	if !exists {
 		return c.sendMessage(userID, fmt.Sprintf("無效的訂閱項目: %s", item))
@@ -241,26 +247,15 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item, status str
 	}
 
 	// 檢查是否已經有此訂閱項目
-	existingSubscription, err := c.userSubscriptionRepo.GetUserSubscriptionByItem(user.ID, subscriptionItem)
+	userSubscription, err := c.userSubscriptionRepo.GetUserSubscriptionByItem(user.ID, subscriptionItem)
 	if err != nil {
 		// 如果沒有找到訂閱項目，且是要訂閱，則新增
-		if status == "active" {
+		if userSubscription == nil && status == SubscriptionStatusActive {
 			if err := c.userSubscriptionRepo.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
 				logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
 				return c.sendMessage(userID, "訂閱失敗，請稍後再試")
 			}
 			return c.sendMessage(userID, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
-		} else {
-			return c.sendMessage(userID, fmt.Sprintf("未訂閱此項目：%s", subscriptionItem.GetName()))
-		}
-	}
-
-	// 如果狀態相同，不需要更新
-	if existingSubscription.Status == status {
-		if status == "active" {
-			return c.sendMessage(userID, fmt.Sprintf("已訂閱：%s", subscriptionItem.GetName()))
-		} else {
-			return c.sendMessage(userID, fmt.Sprintf("未訂閱此項目：%s", subscriptionItem.GetName()))
 		}
 	}
 
@@ -270,7 +265,7 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item, status str
 		return c.sendMessage(userID, "操作失敗，請稍後再試")
 	}
 
-	if status == "active" {
+	if status == SubscriptionStatusActive {
 		return c.sendMessage(userID, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
 	} else {
 		return c.sendMessage(userID, fmt.Sprintf("取消訂閱成功：%s", subscriptionItem.GetName()))
