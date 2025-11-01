@@ -208,7 +208,7 @@ func (r *userSubscriptionRepository) GetUserSubscriptionStockList(userID uint) (
 		JOIN subscriptions sub ON sub.id = ss.subscription_id
 		JOIN symbols s ON s.id = ss.symbol_id
 		JOIN features f ON f.id = sub.feature_id
-		WHERE sub.user_id = ? AND f.code = '股票資訊' AND sub.status = true
+		WHERE sub.user_id = ? AND f.code = '1' AND sub.status = true
 	`
 
 	err := r.db.Raw(query, userID).Scan(&results).Error
