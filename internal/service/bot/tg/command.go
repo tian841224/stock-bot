@@ -1,6 +1,7 @@
 package tgbot
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type TgCommandHandler struct {
@@ -247,16 +249,24 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item string, sta
 	}
 
 	// 檢查是否已經有此訂閱項目
-	userSubscription, err := c.userSubscriptionRepo.GetUserSubscriptionByItem(user.ID, subscriptionItem)
+	_, err = c.userSubscriptionRepo.GetUserSubscriptionByItem(user.ID, subscriptionItem)
 	if err != nil {
-		// 如果沒有找到訂閱項目，且是要訂閱，則新增
-		if userSubscription == nil && status == SubscriptionStatusActive {
-			if err := c.userSubscriptionRepo.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
-				logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
-				return c.sendMessage(userID, "訂閱失敗，請稍後再試")
+		// 如果是記錄不存在
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 如果要訂閱，則新增
+			if status == SubscriptionStatusActive {
+				if err := c.userSubscriptionRepo.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
+					logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
+					return c.sendMessage(userID, "訂閱失敗，請稍後再試")
+				}
+				return c.sendMessage(userID, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
 			}
-			return c.sendMessage(userID, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
+			// 如果是要取消訂閱，但記錄不存在，表示尚未訂閱
+			return c.sendMessage(userID, fmt.Sprintf("您尚未訂閱：%s", subscriptionItem.GetName()))
 		}
+		// 其他錯誤應該記錄並返回
+		logger.Log.Error("取得訂閱項目失敗", zap.Error(err))
+		return c.sendMessage(userID, "操作失敗，請稍後再試")
 	}
 
 	// 更新訂閱狀態

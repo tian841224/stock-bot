@@ -115,7 +115,7 @@ func (r *userSubscriptionRepository) GetUserSubscriptionList(userID uint) ([]*mo
 func (r *userSubscriptionRepository) AddUserSubscriptionStock(userID uint, stockSymbol string) (bool, error) {
 	// 先取得股票資訊
 	var symbol models.Symbol
-	err := r.db.Where("symbol = ? ", stockSymbol).First(&symbol).Error
+	err := r.db.Where("symbol = ?", stockSymbol).First(&symbol).Error
 	if err != nil {
 		return false, err
 	}
@@ -170,7 +170,7 @@ func (r *userSubscriptionRepository) AddUserSubscriptionStock(userID uint, stock
 func (r *userSubscriptionRepository) DeleteUserSubscriptionStock(userID uint, stockSymbol string) (bool, error) {
 	// 先取得股票資訊
 	var symbol models.Symbol
-	err := r.db.Where("symbol = ?  ?", stockSymbol).First(&symbol).Error
+	err := r.db.Where("symbol = ?", stockSymbol).First(&symbol).Error
 	if err != nil {
 		return false, err
 	}
