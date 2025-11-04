@@ -73,13 +73,6 @@ func main() {
 		cron.WithSeconds(), // 如果需要秒級，可開啟；否則移除這行
 	)
 
-	// 程式啟動時先執行一次
-	logger.Log.Info("程式啟動時執行一次通知")
-	schedulerJobService.NotificationStockPrice()
-	schedulerJobService.NotificationStockNews()
-	schedulerJobService.NotificationDailyMarketInfo()
-	schedulerJobService.NotificationTopVolumeItems()
-
 	// 從設定檔載入排程規格（預設每天 15 點，周一至周五）
 	cronSpec := initResult.cfg.SCHEDULER_STOCK_SPEC
 	if cronSpec == "" {
