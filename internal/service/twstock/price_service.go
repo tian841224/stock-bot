@@ -420,7 +420,7 @@ func (s *StockService) GetStockHistoricalCandles(dto fugleDto.FugleCandlesReques
 
 // GetStockInfo 取得股票詳細資訊
 func (s *StockService) GetStockInfo(stockID string) (*stockDto.StockQuoteInfo, error) {
-	logger.Log.Info("取得股票詳細資訊", zap.String("stockID", stockID))
+	// logger.Log.Info("取得股票詳細資訊", zap.String("stockID", stockID))
 
 	response, err := s.cnyesAPI.GetStockQuote(stockID)
 	if err != nil {
