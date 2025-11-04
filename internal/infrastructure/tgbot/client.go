@@ -46,6 +46,7 @@ func NewBot(cfg config.Config) (*TgBotClient, error) {
 // SendMessage 發送訊息
 func (c *TgBotClient) SendMessage(chatID int64, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ParseMode = tgbotapi.ModeHTML
 	_, err := c.Client.Send(msg)
 	if err != nil {
 		logger.Log.Error("發送訊息失敗", zap.Error(err))
@@ -56,6 +57,7 @@ func (c *TgBotClient) SendMessage(chatID int64, text string) error {
 // SendMessageWithKeyboard 發送帶有鍵盤的訊息
 func (c *TgBotClient) SendMessageWithKeyboard(chatID int64, text string, keyboard *tgbotapi.InlineKeyboardMarkup) error {
 	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ParseMode = tgbotapi.ModeHTML
 	if keyboard != nil {
 		msg.ReplyMarkup = keyboard
 	}
