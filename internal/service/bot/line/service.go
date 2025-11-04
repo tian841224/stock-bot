@@ -17,23 +17,39 @@ import (
 	"go.uber.org/zap"
 )
 
-type LineService struct {
-	stockService         *twstock.StockService
+// LineService LINE 服務介面
+type LineService interface {
+	GetDailyMarketInfo(count int) (string, error)
+	GetStockPerformance(symbol string) (string, error)
+	GetStockPerformanceWithChart(symbol string, chartType string) ([]byte, string, error)
+	GetTopVolumeItemsFormatted() (string, error)
+	GetStockPriceByDate(symbol, date string) (string, error)
+	GetStockInfo(symbol string) (string, error)
+	GetStockRevenueWithChart(symbol string) ([]byte, string, error)
+	GetStockHistoricalCandlesChart(symbol string) ([]byte, string, error)
+	GetTaiwanStockNews(symbol string) (*LineStockNewsMessage, error)
+	AddUserStockSubscription(userID uint, symbol string) (string, error)
+	DeleteUserStockSubscription(userID uint, symbol string) (string, error)
+	GetUserSubscriptionList(userID uint) (string, error)
+}
+
+type lineService struct {
+	stockService         twstock.StockService
 	userSubscriptionRepo repository.UserSubscriptionRepository
 }
 
 func NewLineService(
-	stockService *twstock.StockService,
+	stockService twstock.StockService,
 	userSubscriptionRepo repository.UserSubscriptionRepository,
-) *LineService {
-	return &LineService{
+) LineService {
+	return &lineService{
 		stockService:         stockService,
 		userSubscriptionRepo: userSubscriptionRepo,
 	}
 }
 
 // 取得大盤資訊
-func (s *LineService) GetDailyMarketInfo(count int) (string, error) {
+func (s *lineService) GetDailyMarketInfo(count int) (string, error) {
 	marketInfo, err := s.stockService.GetDailyMarketInfo(count)
 	if err != nil {
 		logger.Log.Error("取得大盤資訊失敗", zap.Error(err))
@@ -43,7 +59,7 @@ func (s *LineService) GetDailyMarketInfo(count int) (string, error) {
 }
 
 // 取得股票績效
-func (s *LineService) GetStockPerformance(symbol string) (string, error) {
+func (s *lineService) GetStockPerformance(symbol string) (string, error) {
 	// 驗證股票代號並取得基本資訊
 	valid, stockName, err := s.stockService.ValidateStockID(symbol)
 	if err != nil || !valid {
@@ -64,7 +80,7 @@ func (s *LineService) GetStockPerformance(symbol string) (string, error) {
 }
 
 // 取得股票績效並生成圖表
-func (s *LineService) GetStockPerformanceWithChart(symbol string, chartType string) ([]byte, string, error) {
+func (s *lineService) GetStockPerformanceWithChart(symbol string, chartType string) ([]byte, string, error) {
 	// 驗證股票代號並取得基本資訊
 	valid, stockName, err := s.stockService.ValidateStockID(symbol)
 	if err != nil || !valid {
@@ -92,7 +108,7 @@ func (s *LineService) GetStockPerformanceWithChart(symbol string, chartType stri
 }
 
 // 取得格式化的交易量前20名
-func (s *LineService) GetTopVolumeItemsFormatted() (string, error) {
+func (s *lineService) GetTopVolumeItemsFormatted() (string, error) {
 	topItems, err := s.stockService.GetTopVolumeItems()
 	if err != nil {
 		logger.Log.Error("取得交易量前20名失敗", zap.Error(err))
@@ -131,7 +147,7 @@ func (s *LineService) GetTopVolumeItemsFormatted() (string, error) {
 }
 
 // 取得指定日期的股價資訊
-func (s *LineService) GetStockPriceByDate(symbol, date string) (string, error) {
+func (s *lineService) GetStockPriceByDate(symbol, date string) (string, error) {
 	// 取得指定日期股價資訊
 	stockInfo, err := s.stockService.GetStockPrice(symbol, date)
 	if err != nil {
@@ -181,7 +197,7 @@ func (s *LineService) GetStockPriceByDate(symbol, date string) (string, error) {
 }
 
 // 取得股票詳細資訊
-func (s *LineService) GetStockInfo(symbol string) (string, error) {
+func (s *lineService) GetStockInfo(symbol string) (string, error) {
 	stockInfo, err := s.stockService.GetStockInfo(symbol)
 	if err != nil {
 		logger.Log.Error("取得股票詳細資訊失敗", zap.Error(err))
@@ -193,7 +209,7 @@ func (s *LineService) GetStockInfo(symbol string) (string, error) {
 }
 
 // 取得股票財報和圖表
-func (s *LineService) GetStockRevenueWithChart(symbol string) ([]byte, string, error) {
+func (s *lineService) GetStockRevenueWithChart(symbol string) ([]byte, string, error) {
 	revenue, err := s.stockService.GetStockRevenue(symbol)
 	if err != nil {
 		logger.Log.Error("取得股票財報失敗", zap.Error(err))
@@ -211,7 +227,7 @@ func (s *LineService) GetStockRevenueWithChart(symbol string) ([]byte, string, e
 }
 
 // 取得股票歷史K線圖
-func (s *LineService) GetStockHistoricalCandlesChart(symbol string) ([]byte, string, error) {
+func (s *lineService) GetStockHistoricalCandlesChart(symbol string) ([]byte, string, error) {
 	dto := fugleDto.FugleCandlesRequestDto{
 		Symbol:    symbol,
 		From:      time.Now().AddDate(-1, 0, 1).Format("2006-01-02"),
@@ -230,7 +246,7 @@ func (s *LineService) GetStockHistoricalCandlesChart(symbol string) ([]byte, str
 }
 
 // 取得股票新聞
-func (s *LineService) GetTaiwanStockNews(symbol string) (*LineStockNewsMessage, error) {
+func (s *lineService) GetTaiwanStockNews(symbol string) (*LineStockNewsMessage, error) {
 	// 驗證股票代號
 	valid, stockName, err := s.stockService.ValidateStockID(symbol)
 	if err != nil || !valid {
@@ -260,7 +276,7 @@ func (s *LineService) GetTaiwanStockNews(symbol string) (*LineStockNewsMessage, 
 }
 
 // 新增使用者股票訂閱
-func (s *LineService) AddUserStockSubscription(userID uint, symbol string) (string, error) {
+func (s *lineService) AddUserStockSubscription(userID uint, symbol string) (string, error) {
 	// 驗證股票代號
 	valid, _, err := s.stockService.ValidateStockID(symbol)
 	if err != nil || !valid {
@@ -282,7 +298,7 @@ func (s *LineService) AddUserStockSubscription(userID uint, symbol string) (stri
 }
 
 // 刪除使用者股票訂閱
-func (s *LineService) DeleteUserStockSubscription(userID uint, symbol string) (string, error) {
+func (s *lineService) DeleteUserStockSubscription(userID uint, symbol string) (string, error) {
 	// 刪除股票訂閱
 	success, err := s.userSubscriptionRepo.DeleteUserSubscriptionStock(userID, symbol)
 	if err != nil {
@@ -298,7 +314,7 @@ func (s *LineService) DeleteUserStockSubscription(userID uint, symbol string) (s
 }
 
 // 取得使用者訂閱清單
-func (s *LineService) GetUserSubscriptionList(userID uint) (string, error) {
+func (s *lineService) GetUserSubscriptionList(userID uint) (string, error) {
 	// 取得使用者訂閱項目
 	subscriptions, err := s.userSubscriptionRepo.GetUserSubscriptionList(userID)
 	if err != nil {
@@ -345,7 +361,7 @@ func (s *LineService) GetUserSubscriptionList(userID uint) (string, error) {
 }
 
 // formatRevenueMessage 格式化股票財報訊息
-func (s *LineService) formatRevenueMessage(revenue *stockDto.RevenueDto) string {
+func (s *lineService) formatRevenueMessage(revenue *stockDto.RevenueDto) string {
 	var message strings.Builder
 
 	message.WriteString(fmt.Sprintf("📊 %s(%s) 月營收\n\n", revenue.Name, revenue.Code))
@@ -383,13 +399,13 @@ func (s *LineService) formatRevenueMessage(revenue *stockDto.RevenueDto) string 
 }
 
 // formatTimeFromTimestamp 將時間戳記格式化為 YYYY/MM 格式
-func (s *LineService) formatTimeFromTimestamp(timestamp int64) string {
+func (s *lineService) formatTimeFromTimestamp(timestamp int64) string {
 	t := time.Unix(timestamp, 0)
 	return t.Format("2006/01")
 }
 
 // 格式化股票績效
-func (s *LineService) formatPerformanceTable(stockName, symbol string, performanceData *stockDto.StockPerformanceResponseDto) string {
+func (s *lineService) formatPerformanceTable(stockName, symbol string, performanceData *stockDto.StockPerformanceResponseDto) string {
 	result := ""
 	// 使用手機友善的格式，避免複雜表格
 	result += fmt.Sprintf("📊 %s (%s) 績效表現\n\n", stockName, symbol)
@@ -418,7 +434,7 @@ func (s *LineService) formatPerformanceTable(stockName, symbol string, performan
 }
 
 // 格式化大盤資訊
-func (s *LineService) formatDailyMarketInfoMessage(marketInfo twseDto.DailyMarketInfoResponseDto) string {
+func (s *lineService) formatDailyMarketInfoMessage(marketInfo twseDto.DailyMarketInfoResponseDto) string {
 	messageText := "台灣股市大盤資訊\n\n"
 
 	// 檢查欄位名稱和資料是否匹配
@@ -452,7 +468,7 @@ func (s *LineService) formatDailyMarketInfoMessage(marketInfo twseDto.DailyMarke
 }
 
 // 格式化股票詳細資訊
-func (s *LineService) formatStockInfoMessage(stockInfo *stockDto.StockQuoteInfo) string {
+func (s *lineService) formatStockInfoMessage(stockInfo *stockDto.StockQuoteInfo) string {
 	var message strings.Builder
 
 	// 股票基本資訊

@@ -12,15 +12,23 @@ import (
 	"go.uber.org/zap"
 )
 
+// SchedulerJobService 排程任務服務介面
+type SchedulerJobService interface {
+	NotificationStockPrice()
+	NotificationStockNews()
+	NotificationDailyMarketInfo()
+	NotificationTopVolumeItems()
+}
+
 type schedulerJobService struct {
-	tgService              *tgbot.TgService
+	tgService              tgbot.TgService
 	tgClient               *tgbotInfra.TgBotClient
 	userRepo               repository.UserRepository
 	subscriptionRepo       repository.SubscriptionRepository
 	subscriptionSymbolRepo repository.SubscriptionSymbolRepository
 }
 
-func NewSchedulerJobService(tgService *tgbot.TgService, tgClient *tgbotInfra.TgBotClient, userRepo repository.UserRepository, subscriptionRepo repository.SubscriptionRepository, subscriptionSymbolRepo repository.SubscriptionSymbolRepository) *schedulerJobService {
+func NewSchedulerJobService(tgService tgbot.TgService, tgClient *tgbotInfra.TgBotClient, userRepo repository.UserRepository, subscriptionRepo repository.SubscriptionRepository, subscriptionSymbolRepo repository.SubscriptionSymbolRepository) SchedulerJobService {
 	return &schedulerJobService{
 		tgService:              tgService,
 		tgClient:               tgClient,

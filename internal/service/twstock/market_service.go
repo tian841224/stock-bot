@@ -12,7 +12,7 @@ import (
 // ========== 大盤資訊相關方法 ==========
 
 // GetDailyMarketInfo 取得大盤資訊
-func (s *StockService) GetDailyMarketInfo(count int) (twseDto.DailyMarketInfoResponseDto, error) {
+func (s *stockService) GetDailyMarketInfo(count int) (twseDto.DailyMarketInfoResponseDto, error) {
 	logger.Log.Info("取得大盤資訊", zap.Int("count", count))
 
 	response, err := s.twseAPI.GetDailyMarketInfo()

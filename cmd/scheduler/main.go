@@ -38,7 +38,7 @@ type InitResult struct {
 	finmindClient          *finmindtrade.FinmindTradeAPI
 	twseAPI                *twseInfra.TwseAPI
 	cnyesAPI               *cnyesInfra.CnyesAPI
-	stockService           *twstockService.StockService
+	stockService           twstockService.StockService
 	tgBotClient            *tgbotInfra.TgBotClient
 	err                    error
 }

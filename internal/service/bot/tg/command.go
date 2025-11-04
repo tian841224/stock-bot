@@ -19,7 +19,7 @@ import (
 
 type TgCommandHandler struct {
 	botClient            *tgbot.TgBotClient
-	tgService            *TgService
+	tgService            TgService
 	userService          user.UserService
 	userSubscriptionRepo repository.UserSubscriptionRepository
 	subscriptionItemMap  map[string]models.SubscriptionItem
@@ -27,7 +27,7 @@ type TgCommandHandler struct {
 
 func NewTgCommandHandler(
 	botClient *tgbot.TgBotClient,
-	tgService *TgService,
+	tgService TgService,
 	userService user.UserService,
 	userSubscriptionRepo repository.UserSubscriptionRepository,
 ) *TgCommandHandler {

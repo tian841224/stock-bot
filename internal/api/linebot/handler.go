@@ -12,12 +12,12 @@ import (
 
 // LineBotHandler 處理 webhook 請求
 type LineBotHandler struct {
-	service   *lineService.LineServiceHandler
+	service   lineService.LineServiceHandler
 	botClient *linebotInfra.LineBotClient
 }
 
 // NewLineBotHandler 創建 handler
-func NewLineBotHandler(service *lineService.LineServiceHandler, botClient *linebotInfra.LineBotClient) *LineBotHandler {
+func NewLineBotHandler(service lineService.LineServiceHandler, botClient *linebotInfra.LineBotClient) *LineBotHandler {
 	return &LineBotHandler{
 		service:   service,
 		botClient: botClient,

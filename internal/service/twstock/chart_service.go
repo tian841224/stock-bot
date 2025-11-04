@@ -14,7 +14,7 @@ import (
 // ========== 圖表生成相關方法 ==========
 
 // GetStockPerformanceWithChart 取得股票績效並生成圖表
-func (s *StockService) GetStockPerformanceWithChart(stockID string, chartType string) (*stockDto.StockPerformanceResponseDto, error) {
+func (s *stockService) GetStockPerformanceWithChart(stockID string, chartType string) (*stockDto.StockPerformanceResponseDto, error) {
 	logger.Log.Info("取得股票績效並生成圖表", zap.String("stockID", stockID), zap.String("chartType", chartType))
 
 	// 先取得績效資料
@@ -64,7 +64,7 @@ func (s *StockService) GetStockPerformanceWithChart(stockID string, chartType st
 }
 
 // GetStockHistoricalCandlesChart 取得股票歷史 K 線圖
-func (s *StockService) GetStockHistoricalCandlesChart(dto fugleDto.FugleCandlesRequestDto) ([]byte, string, error) {
+func (s *stockService) GetStockHistoricalCandlesChart(dto fugleDto.FugleCandlesRequestDto) ([]byte, string, error) {
 	response, err := s.fugleClient.GetStockHistoricalCandles(dto)
 	if err != nil {
 		return nil, "", err
@@ -103,7 +103,7 @@ func (s *StockService) GetStockHistoricalCandlesChart(dto fugleDto.FugleCandlesR
 }
 
 // GetStockRevenueChart 取得股票營收圖表
-func (s *StockService) GetStockRevenueChart(stockID string) ([]byte, error) {
+func (s *stockService) GetStockRevenueChart(stockID string) ([]byte, error) {
 	logger.Log.Info("產生股票營收圖表", zap.String("stockID", stockID))
 
 	// 取得營收資料

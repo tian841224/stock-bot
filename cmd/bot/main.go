@@ -44,7 +44,7 @@ type InitResult struct {
 	cnyesAPI             *cnyesInfra.CnyesAPI
 	imgbbClient          *imgbb.ImgBBClient
 	userService          user.UserService
-	stockService         *twstockService.StockService
+	stockService         twstockService.StockService
 	lineBotClient        *linebotInfra.LineBotClient
 	tgBotClient          *tgbotInfra.TgBotClient
 	err                  error

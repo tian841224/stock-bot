@@ -17,7 +17,7 @@ import (
 
 type LineCommandHandler struct {
 	botClient            *linebotInfra.LineBotClient
-	lineService          *LineService
+	lineService          LineService
 	userService          user.UserService
 	userSubscriptionRepo repository.UserSubscriptionRepository
 	subscriptionItemMap  map[string]models.SubscriptionItem
@@ -26,7 +26,7 @@ type LineCommandHandler struct {
 
 func NewLineCommandHandler(
 	botClient *linebotInfra.LineBotClient,
-	lineService *LineService,
+	lineService LineService,
 	userService user.UserService,
 	userSubscriptionRepo repository.UserSubscriptionRepository,
 	imgbbClient *imgbb.ImgBBClient,

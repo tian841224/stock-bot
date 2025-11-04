@@ -70,7 +70,7 @@ func main() {
 }
 
 // runBackgroundSync 執行背景同步任務
-func runBackgroundSync(ctx context.Context, stockSyncService *stock_sync.StockSyncService) {
+func runBackgroundSync(ctx context.Context, stockSyncService stock_sync.StockSyncService) {
 	defer func() {
 		logger.Log.Info("背景同步任務已完全停止")
 	}()

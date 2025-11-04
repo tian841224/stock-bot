@@ -14,10 +14,10 @@ import (
 
 type TgHandler struct {
 	cfg              *config.Config
-	tgServiceHandler *tgService.TgServiceHandler
+	tgServiceHandler tgService.TgServiceHandler
 }
 
-func NewTgHandler(cfg *config.Config, tgServiceHandler *tgService.TgServiceHandler) *TgHandler {
+func NewTgHandler(cfg *config.Config, tgServiceHandler tgService.TgServiceHandler) *TgHandler {
 	return &TgHandler{cfg: cfg, tgServiceHandler: tgServiceHandler}
 }
 

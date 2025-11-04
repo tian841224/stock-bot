@@ -14,19 +14,24 @@ import (
 	"go.uber.org/zap"
 )
 
-type TgServiceHandler struct {
+// TgServiceHandler Telegram 服務處理器介面
+type TgServiceHandler interface {
+	ProcessUpdate(update *tgbotapi.Update) error
+}
+
+type tgServiceHandler struct {
 	commandHandler *TgCommandHandler
 	userService    user.UserService
 }
 
-func NewTgServiceHandler(commandHandler *TgCommandHandler, userService user.UserService) *TgServiceHandler {
-	return &TgServiceHandler{
+func NewTgServiceHandler(commandHandler *TgCommandHandler, userService user.UserService) TgServiceHandler {
+	return &tgServiceHandler{
 		commandHandler: commandHandler,
 		userService:    userService,
 	}
 }
 
-func (s *TgServiceHandler) ProcessUpdate(update *tgbotapi.Update) error {
+func (s *tgServiceHandler) ProcessUpdate(update *tgbotapi.Update) error {
 	if update.Message == nil {
 		return nil
 	}
@@ -34,7 +39,7 @@ func (s *TgServiceHandler) ProcessUpdate(update *tgbotapi.Update) error {
 	return s.processCommand(update.Message)
 }
 
-func (s *TgServiceHandler) processCommand(message *tgbotapi.Message) error {
+func (s *tgServiceHandler) processCommand(message *tgbotapi.Message) error {
 	if message.Text == "" {
 		return nil
 	}

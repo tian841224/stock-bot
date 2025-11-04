@@ -15,8 +15,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// LineServiceHandler 處理對話邏輯
-type LineServiceHandler struct {
+// LineServiceHandler LINE 服務處理器介面
+type LineServiceHandler interface {
+	HandleTextMessage(event *linebot.Event, message *linebot.TextMessage) error
+}
+
+// lineServiceHandler 處理對話邏輯
+type lineServiceHandler struct {
 	botClient      *linebotInfra.LineBotClient
 	commandHandler *LineCommandHandler
 	userService    user.UserService
@@ -27,8 +32,8 @@ func NewBotService(
 	botClient *linebotInfra.LineBotClient,
 	commandHandler *LineCommandHandler,
 	userService user.UserService,
-) *LineServiceHandler {
-	return &LineServiceHandler{
+) LineServiceHandler {
+	return &lineServiceHandler{
 		botClient:      botClient,
 		commandHandler: commandHandler,
 		userService:    userService,
@@ -36,7 +41,7 @@ func NewBotService(
 }
 
 // HandleTextMessage 處理文字訊息
-func (s *LineServiceHandler) HandleTextMessage(event *linebot.Event, message *linebot.TextMessage) error {
+func (s *lineServiceHandler) HandleTextMessage(event *linebot.Event, message *linebot.TextMessage) error {
 	if message.Text == "" {
 		return nil
 	}

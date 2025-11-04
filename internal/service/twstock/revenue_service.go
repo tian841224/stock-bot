@@ -12,7 +12,7 @@ import (
 // ========== 財報相關方法 ==========
 
 // GetStockRevenue 取得股票財報
-func (s *StockService) GetStockRevenue(stockID string) (*stockDto.RevenueDto, error) {
+func (s *stockService) GetStockRevenue(stockID string) (*stockDto.RevenueDto, error) {
 	logger.Log.Info("取得股票財報", zap.String("stockID", stockID))
 
 	// 取得近12個月財報
