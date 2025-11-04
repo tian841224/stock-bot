@@ -26,6 +26,7 @@ import (
 	tgService "github.com/tian841224/stock-bot/internal/service/bot/tg"
 	twstockService "github.com/tian841224/stock-bot/internal/service/twstock"
 	"github.com/tian841224/stock-bot/internal/service/user"
+	"github.com/tian841224/stock-bot/internal/service/user_subscription"
 	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -74,13 +75,15 @@ func main() {
 		c.JSON(200, gin.H{"message": "ok"})
 	})
 
+	// 建立使用者訂閱服務
+	userSubscriptionService := user_subscription.NewUserSubscriptionService(initResult.userSubscriptionRepo)
 	// 建立 LINE Bot 服務層
-	lineSvc := lineService.NewLineService(initResult.stockService, initResult.userSubscriptionRepo)
+	lineSvc := lineService.NewLineService(initResult.stockService, userSubscriptionService)
 	lineCommandHandler := lineService.NewLineCommandHandler(
 		initResult.lineBotClient,
 		lineSvc,
 		initResult.userService,
-		initResult.userSubscriptionRepo,
+		userSubscriptionService,
 		initResult.imgbbClient,
 	)
 	service := lineService.NewBotService(initResult.lineBotClient, lineCommandHandler, initResult.userService)
@@ -88,12 +91,12 @@ func main() {
 	linebot.RegisterRoutes(router, handler, initResult.cfg.LINE_BOT_WEBHOOK_PATH)
 
 	// 建立 Telegram Bot 服務層
-	tgSvc := tgService.NewTgService(initResult.stockService, initResult.userSubscriptionRepo)
+	tgSvc := tgService.NewTgService(initResult.stockService, userSubscriptionService)
 	tgCommandHandler := tgService.NewTgCommandHandler(
 		initResult.tgBotClient,
 		tgSvc,
 		initResult.userService,
-		initResult.userSubscriptionRepo,
+		userSubscriptionService,
 	)
 	tgServiceHandler := tgService.NewTgServiceHandler(tgCommandHandler, initResult.userService)
 	tgHandler := tgbot.NewTgHandler(initResult.cfg, tgServiceHandler)

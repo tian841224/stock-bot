@@ -9,8 +9,8 @@ import (
 
 	"github.com/tian841224/stock-bot/internal/db/models"
 	"github.com/tian841224/stock-bot/internal/infrastructure/tgbot"
-	"github.com/tian841224/stock-bot/internal/repository"
 	"github.com/tian841224/stock-bot/internal/service/user"
+	"github.com/tian841224/stock-bot/internal/service/user_subscription"
 	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"go.uber.org/zap"
@@ -18,25 +18,25 @@ import (
 )
 
 type TgCommandHandler struct {
-	botClient            *tgbot.TgBotClient
-	tgService            TgService
-	userService          user.UserService
-	userSubscriptionRepo repository.UserSubscriptionRepository
-	subscriptionItemMap  map[string]models.SubscriptionItem
+	botClient               *tgbot.TgBotClient
+	tgService               TgService
+	userService             user.UserService
+	userSubscriptionService user_subscription.UserSubscriptionService
+	subscriptionItemMap     map[string]models.SubscriptionItem
 }
 
 func NewTgCommandHandler(
 	botClient *tgbot.TgBotClient,
 	tgService TgService,
 	userService user.UserService,
-	userSubscriptionRepo repository.UserSubscriptionRepository,
+	userSubscriptionService user_subscription.UserSubscriptionService,
 ) *TgCommandHandler {
 	return &TgCommandHandler{
-		botClient:            botClient,
-		tgService:            tgService,
-		userService:          userService,
-		userSubscriptionRepo: userSubscriptionRepo,
-		subscriptionItemMap:  models.SubscriptionItemMap,
+		botClient:               botClient,
+		tgService:               tgService,
+		userService:             userService,
+		userSubscriptionService: userSubscriptionService,
+		subscriptionItemMap:     models.SubscriptionItemMap,
 	}
 }
 
@@ -249,13 +249,13 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item string, sta
 	}
 
 	// 檢查是否已經有此訂閱項目
-	_, err = c.userSubscriptionRepo.GetUserSubscriptionByItem(user.ID, subscriptionItem)
+	_, err = c.userSubscriptionService.GetUserSubscriptionByItem(user.ID, subscriptionItem)
 	if err != nil {
 		// 如果是記錄不存在
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 如果要訂閱，則新增
 			if status == SubscriptionStatusActive {
-				if err := c.userSubscriptionRepo.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
+				if err := c.userSubscriptionService.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
 					logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
 					return c.botClient.SendMessage(userID, "訂閱失敗，請稍後再試")
 				}
@@ -270,7 +270,7 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item string, sta
 	}
 
 	// 更新訂閱狀態
-	if err := c.userSubscriptionRepo.UpdateUserSubscriptionItem(user.ID, subscriptionItem, status); err != nil {
+	if err := c.userSubscriptionService.UpdateUserSubscriptionItem(user.ID, subscriptionItem, status); err != nil {
 		logger.Log.Error("更新訂閱狀態失敗", zap.Error(err))
 		return c.botClient.SendMessage(userID, "操作失敗，請稍後再試")
 	}

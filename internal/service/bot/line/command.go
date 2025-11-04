@@ -8,36 +8,36 @@ import (
 	"github.com/tian841224/stock-bot/internal/db/models"
 	"github.com/tian841224/stock-bot/internal/infrastructure/imgbb"
 	linebotInfra "github.com/tian841224/stock-bot/internal/infrastructure/linebot"
-	"github.com/tian841224/stock-bot/internal/repository"
 	"github.com/tian841224/stock-bot/internal/service/user"
+	"github.com/tian841224/stock-bot/internal/service/user_subscription"
 	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"go.uber.org/zap"
 )
 
 type LineCommandHandler struct {
-	botClient            *linebotInfra.LineBotClient
-	lineService          LineService
-	userService          user.UserService
-	userSubscriptionRepo repository.UserSubscriptionRepository
-	subscriptionItemMap  map[string]models.SubscriptionItem
-	imgbbClient          *imgbb.ImgBBClient
+	botClient               *linebotInfra.LineBotClient
+	lineService             LineService
+	userService             user.UserService
+	userSubscriptionService user_subscription.UserSubscriptionService
+	subscriptionItemMap     map[string]models.SubscriptionItem
+	imgbbClient             *imgbb.ImgBBClient
 }
 
 func NewLineCommandHandler(
 	botClient *linebotInfra.LineBotClient,
 	lineService LineService,
 	userService user.UserService,
-	userSubscriptionRepo repository.UserSubscriptionRepository,
+	userSubscriptionService user_subscription.UserSubscriptionService,
 	imgbbClient *imgbb.ImgBBClient,
 ) *LineCommandHandler {
 	return &LineCommandHandler{
-		botClient:            botClient,
-		lineService:          lineService,
-		userService:          userService,
-		userSubscriptionRepo: userSubscriptionRepo,
-		subscriptionItemMap:  models.SubscriptionItemMap,
-		imgbbClient:          imgbbClient,
+		botClient:               botClient,
+		lineService:             lineService,
+		userService:             userService,
+		userSubscriptionService: userSubscriptionService,
+		subscriptionItemMap:     models.SubscriptionItemMap,
+		imgbbClient:             imgbbClient,
 	}
 }
 
@@ -244,11 +244,11 @@ func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item str
 	}
 
 	// 檢查是否已經有此訂閱項目
-	existingSubscription, err := c.userSubscriptionRepo.GetUserSubscriptionByItem(user.ID, subscriptionItem)
+	existingSubscription, err := c.userSubscriptionService.GetUserSubscriptionByItem(user.ID, subscriptionItem)
 	if err != nil {
 		// 如果沒有找到訂閱項目，且是要訂閱，則新增
 		if status {
-			if err := c.userSubscriptionRepo.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
+			if err := c.userSubscriptionService.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
 				logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
 				return c.botClient.ReplyMessage(replyToken, "訂閱失敗，請稍後再試")
 			}
@@ -268,7 +268,7 @@ func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item str
 	}
 
 	// 更新訂閱狀態
-	if err := c.userSubscriptionRepo.UpdateUserSubscriptionItem(user.ID, subscriptionItem, status); err != nil {
+	if err := c.userSubscriptionService.UpdateUserSubscriptionItem(user.ID, subscriptionItem, status); err != nil {
 		logger.Log.Error("更新訂閱狀態失敗", zap.Error(err))
 		return c.botClient.ReplyMessage(replyToken, "操作失敗，請稍後再試")
 	}

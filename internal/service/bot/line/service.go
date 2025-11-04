@@ -8,9 +8,9 @@ import (
 
 	fugleDto "github.com/tian841224/stock-bot/internal/infrastructure/fugle/dto"
 	twseDto "github.com/tian841224/stock-bot/internal/infrastructure/twse/dto"
-	"github.com/tian841224/stock-bot/internal/repository"
 	"github.com/tian841224/stock-bot/internal/service/twstock"
 	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
+	"github.com/tian841224/stock-bot/internal/service/user_subscription"
 	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"github.com/line/line-bot-sdk-go/linebot"
@@ -34,17 +34,17 @@ type LineService interface {
 }
 
 type lineService struct {
-	stockService         twstock.StockService
-	userSubscriptionRepo repository.UserSubscriptionRepository
+	stockService            twstock.StockService
+	userSubscriptionService user_subscription.UserSubscriptionService
 }
 
 func NewLineService(
 	stockService twstock.StockService,
-	userSubscriptionRepo repository.UserSubscriptionRepository,
+	userSubscriptionService user_subscription.UserSubscriptionService,
 ) LineService {
 	return &lineService{
-		stockService:         stockService,
-		userSubscriptionRepo: userSubscriptionRepo,
+		stockService:            stockService,
+		userSubscriptionService: userSubscriptionService,
 	}
 }
 
@@ -284,7 +284,7 @@ func (s *lineService) AddUserStockSubscription(userID uint, symbol string) (stri
 	}
 
 	// 新增股票訂閱
-	success, err := s.userSubscriptionRepo.AddUserSubscriptionStock(userID, symbol)
+	success, err := s.userSubscriptionService.AddUserSubscriptionStock(userID, symbol)
 	if err != nil {
 		logger.Log.Error("新增股票訂閱失敗", zap.Error(err))
 		return "", fmt.Errorf("訂閱失敗，請稍後再試")
@@ -300,7 +300,7 @@ func (s *lineService) AddUserStockSubscription(userID uint, symbol string) (stri
 // 刪除使用者股票訂閱
 func (s *lineService) DeleteUserStockSubscription(userID uint, symbol string) (string, error) {
 	// 刪除股票訂閱
-	success, err := s.userSubscriptionRepo.DeleteUserSubscriptionStock(userID, symbol)
+	success, err := s.userSubscriptionService.DeleteUserSubscriptionStock(userID, symbol)
 	if err != nil {
 		logger.Log.Error("刪除股票訂閱失敗", zap.Error(err))
 		return "", fmt.Errorf("取消訂閱失敗，請稍後再試")
@@ -316,14 +316,14 @@ func (s *lineService) DeleteUserStockSubscription(userID uint, symbol string) (s
 // 取得使用者訂閱清單
 func (s *lineService) GetUserSubscriptionList(userID uint) (string, error) {
 	// 取得使用者訂閱項目
-	subscriptions, err := s.userSubscriptionRepo.GetUserSubscriptionList(userID)
+	subscriptions, err := s.userSubscriptionService.GetUserSubscriptionList(userID)
 	if err != nil {
 		logger.Log.Error("取得使用者訂閱項目失敗", zap.Error(err))
 		return "", fmt.Errorf("取得訂閱清單失敗")
 	}
 
 	// 取得使用者訂閱股票
-	subscriptionStocks, err := s.userSubscriptionRepo.GetUserSubscriptionStockList(userID)
+	subscriptionStocks, err := s.userSubscriptionService.GetUserSubscriptionStockList(userID)
 	if err != nil {
 		logger.Log.Error("取得使用者訂閱股票失敗", zap.Error(err))
 		return "", fmt.Errorf("取得訂閱清單失敗")

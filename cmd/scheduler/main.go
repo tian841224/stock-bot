@@ -21,6 +21,7 @@ import (
 	tgService "github.com/tian841224/stock-bot/internal/service/bot/tg"
 	"github.com/tian841224/stock-bot/internal/service/notification"
 	twstockService "github.com/tian841224/stock-bot/internal/service/twstock"
+	"github.com/tian841224/stock-bot/internal/service/user_subscription"
 	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"go.uber.org/zap"
@@ -50,8 +51,10 @@ func main() {
 		logger.Log.Panic("初始化失敗", zap.Error(err))
 	}
 
+	// 建立使用者訂閱服務
+	userSubscriptionService := user_subscription.NewUserSubscriptionService(initResult.userSubscriptionRepo)
 	// 建立 Telegram Bot 服務層
-	tgSvc := tgService.NewTgService(initResult.stockService, initResult.userSubscriptionRepo)
+	tgSvc := tgService.NewTgService(initResult.stockService, userSubscriptionService)
 	// 建立排程通知服務
 	schedulerJobService := notification.NewSchedulerJobService(tgSvc, initResult.tgBotClient, initResult.userRepo, initResult.subscriptionRepo, initResult.subscriptionSymbolRepo)
 
