@@ -16,14 +16,16 @@ type schedulerJobService struct {
 	tgService              *tgbot.TgService
 	tgClient               *tgbotInfra.TgBotClient
 	userRepo               repository.UserRepository
+	subscriptionRepo       repository.SubscriptionRepository
 	subscriptionSymbolRepo repository.SubscriptionSymbolRepository
 }
 
-func NewSchedulerJobService(tgService *tgbot.TgService, tgClient *tgbotInfra.TgBotClient, userRepo repository.UserRepository, subscriptionSymbolRepo repository.SubscriptionSymbolRepository) *schedulerJobService {
+func NewSchedulerJobService(tgService *tgbot.TgService, tgClient *tgbotInfra.TgBotClient, userRepo repository.UserRepository, subscriptionRepo repository.SubscriptionRepository, subscriptionSymbolRepo repository.SubscriptionSymbolRepository) *schedulerJobService {
 	return &schedulerJobService{
 		tgService:              tgService,
 		tgClient:               tgClient,
 		userRepo:               userRepo,
+		subscriptionRepo:       subscriptionRepo,
 		subscriptionSymbolRepo: subscriptionSymbolRepo,
 	}
 }
@@ -31,7 +33,7 @@ func NewSchedulerJobService(tgService *tgbot.TgService, tgClient *tgbotInfra.TgB
 // NotificationStockPrice 通知當日股價資訊
 func (s *schedulerJobService) NotificationStockPrice() {
 	// 取得按 symbol 分組的訂閱者清單
-	symbolSubscriptions, err := s.getSymbolSubscriptions(1)
+	symbolSubscriptions, err := s.getSymbolSubscriptions()
 	if err != nil {
 		return
 	}
@@ -50,7 +52,7 @@ func (s *schedulerJobService) NotificationStockPrice() {
 		}
 
 		// 將股票資訊發送給所有訂閱該 symbol 的使用者
-		s.sendNotificationToSubscribers(symbol, tgStockInfoMessage, userIDs)
+		s.sendNotificationToSubscribers(tgStockInfoMessage, userIDs)
 		totalSubscriptions += len(userIDs)
 	}
 
@@ -60,7 +62,7 @@ func (s *schedulerJobService) NotificationStockPrice() {
 // NotificationStockNews 通知股票新聞
 func (s *schedulerJobService) NotificationStockNews() {
 	// 取得按 symbol 分組的訂閱者清單
-	symbolSubscriptions, err := s.getSymbolSubscriptions(2)
+	symbolSubscriptions, err := s.getSymbolSubscriptions()
 	if err != nil {
 		return
 	}
@@ -100,7 +102,7 @@ func (s *schedulerJobService) NotificationStockNews() {
 		}
 
 		// 將股票新聞發送給所有訂閱該 symbol 的使用者
-		s.sendNotificationToSubscribers(symbol, tgStockNewsMessage.Text, userIDs)
+		// s.sendNotificationToSubscribers(tgStockNewsMessage.Text, userIDs)
 		totalSubscriptions += len(userIDs)
 	}
 
@@ -109,64 +111,68 @@ func (s *schedulerJobService) NotificationStockNews() {
 
 // NotificationDailyMarketInfo 通知大盤資訊
 func (s *schedulerJobService) NotificationDailyMarketInfo() {
-	// 取得按 symbol 分組的訂閱者清單
-	symbolSubscriptions, err := s.getSymbolSubscriptions(3)
+	// 取得大盤訂閱者清單
+	subscriptionsList, err := s.getSubscriptions(3)
 	if err != nil {
 		return
 	}
 
-	if symbolSubscriptions == nil {
+	if subscriptionsList == nil {
 		return
 	}
+	tgDailyMarketInfoMessage, err := s.tgService.GetDailyMarketInfo(1)
 
-	totalSubscriptions := 0
-	// 對每個唯一的 symbol 只查一次股票新聞
-	for symbol, userIDs := range symbolSubscriptions {
-		tgDailyMarketInfoMessage, err := s.tgService.GetDailyMarketInfo(1)
-		if err != nil {
-			logger.Log.Error("取得股票新聞失敗", zap.String("symbol", symbol), zap.Error(err))
-			continue
-		}
+	// 將大盤資訊發送給所有訂閱者
+	s.sendNotificationToSubscribers(tgDailyMarketInfoMessage, subscriptionsList)
 
-		// 將股票新聞發送給所有訂閱該 symbol 的使用者
-		s.sendNotificationToSubscribers(symbol, tgDailyMarketInfoMessage, userIDs)
-		totalSubscriptions += len(userIDs)
-	}
-
-	logger.Log.Info("大盤資訊通知完成", zap.Int("symbol數量", len(symbolSubscriptions)), zap.Int("訂閱數量", totalSubscriptions))
+	logger.Log.Info("大盤資訊通知完成", zap.Int("訂閱數量", len(subscriptionsList)))
 }
 
 // NotificationTopVolumeItems 通知當日交易量前20名資訊
 func (s *schedulerJobService) NotificationTopVolumeItems() {
-	// 取得按 symbol 分組的訂閱者清單
-	symbolSubscriptions, err := s.getSymbolSubscriptions(4)
+	// 取得大盤訂閱者清單
+	subscriptionsList, err := s.getSubscriptions(4)
 	if err != nil {
 		return
 	}
 
-	if symbolSubscriptions == nil {
+	if subscriptionsList == nil {
 		return
 	}
+	tgTopVolumeItemsMessage, err := s.tgService.GetTopVolumeItemsFormatted()
 
-	totalSubscriptions := 0
-	// 對每個唯一的 symbol 只查一次股票新聞
-	for symbol, userIDs := range symbolSubscriptions {
-		tgTopVolumeItemsMessage, err := s.tgService.GetTopVolumeItemsFormatted()
-		if err != nil {
-			logger.Log.Error("取得當日交易量前20名資訊失敗", zap.String("symbol", symbol), zap.Error(err))
-			continue
-		}
+	// 將大盤資訊發送給所有訂閱者
+	s.sendNotificationToSubscribers(tgTopVolumeItemsMessage, subscriptionsList)
 
-		// 將股票新聞發送給所有訂閱該 symbol 的使用者
-		s.sendNotificationToSubscribers(symbol, tgTopVolumeItemsMessage, userIDs)
-		totalSubscriptions += len(userIDs)
+	logger.Log.Info("交易量前20名資訊通知完成", zap.Int("訂閱數量", len(subscriptionsList)))
+}
+
+// getSubscriptions 取得按 symbol 分組的訂閱者清單
+func (s *schedulerJobService) getSubscriptions(featureID uint) ([]uint, error) {
+	// 取得所有股票訂閱清單
+	subscriptionList, err := s.subscriptionRepo.GetByFeatureID(featureID)
+	if err != nil {
+		logger.Log.Error("取得所有訂閱清單失敗", zap.Error(err))
+		return nil, err
 	}
 
-	logger.Log.Info("當日交易量前20名資訊通知完成", zap.Int("symbol數量", len(symbolSubscriptions)), zap.Int("訂閱數量", totalSubscriptions))
+	if len(subscriptionList) == 0 {
+		logger.Log.Info("沒有資料需要通知")
+		return nil, nil
+	}
+
+	// 按 symbol 分組，彙整相同 symbol 的所有訂閱
+	subscriptions := make([]uint, 0)
+	for _, subscription := range subscriptionList {
+		userID := subscription.UserID
+		subscriptions = append(subscriptions, userID)
+	}
+
+	return subscriptions, nil
 }
 
 // getSymbolSubscriptions 取得按 symbol 分組的訂閱者清單
-func (s *schedulerJobService) getSymbolSubscriptions(featureID uint) (map[string][]uint, error) {
+func (s *schedulerJobService) getSymbolSubscriptions() (map[string][]uint, error) {
 	// 取得所有股票訂閱清單
 	subscriptionSymbols, err := s.subscriptionSymbolRepo.GetAll("subscription_id")
 	if err != nil {
@@ -182,7 +188,7 @@ func (s *schedulerJobService) getSymbolSubscriptions(featureID uint) (map[string
 	// 按 symbol 分組，彙整相同 symbol 的所有訂閱
 	symbolSubscriptions := make(map[string][]uint)
 	for _, subscriptionSymbol := range subscriptionSymbols {
-		if subscriptionSymbol.Symbol == nil || subscriptionSymbol.Subscription == nil || subscriptionSymbol.Subscription.FeatureID != featureID {
+		if subscriptionSymbol.Symbol == nil || subscriptionSymbol.Subscription == nil {
 			logger.Log.Warn("訂閱資料缺少關聯資訊，跳過")
 			continue
 		}
@@ -195,7 +201,7 @@ func (s *schedulerJobService) getSymbolSubscriptions(featureID uint) (map[string
 }
 
 // sendNotificationToSubscribers 將訊息發送給指定 symbol 的所有訂閱者
-func (s *schedulerJobService) sendNotificationToSubscribers(symbol string, message string, userIDs []uint) {
+func (s *schedulerJobService) sendNotificationToSubscribers(message string, userIDs []uint) {
 	// 將股票資訊發送給所有訂閱該 symbol 的使用者
 	for _, userID := range userIDs {
 		user, err := s.userRepo.GetByID(userID)
@@ -213,7 +219,7 @@ func (s *schedulerJobService) sendNotificationToSubscribers(symbol string, messa
 			continue
 		}
 		if err := s.tgClient.SendMessage(accountIDInt, message); err != nil {
-			logger.Log.Error("發送股票資訊通知失敗", zap.String("symbol", symbol), zap.Uint("userID", userID), zap.Error(err))
+			logger.Log.Error("發送通知失敗", zap.Uint("userID", userID), zap.Error(err))
 		}
 	}
 }
