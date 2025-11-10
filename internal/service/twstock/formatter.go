@@ -11,7 +11,7 @@ import (
 // ========== 轉換格式相關方法 ==========
 
 // formatStockInfo 格式化股票資訊（已重構為使用領域模型）
-func (s *StockService) formatStockInfo(data cnyesInfraDto.CnyesStockQuoteDataDto) *stockDto.StockQuoteInfo {
+func (s *stockService) formatStockInfo(data cnyesInfraDto.CnyesStockQuoteDataDto) *stockDto.StockQuoteInfo {
 	// 使用領域服務進行轉換
 	stock, err := s.domainService.GetStockMapper().FromCnyesDto(data)
 	if err != nil {
@@ -40,7 +40,7 @@ func (s *StockService) formatStockInfo(data cnyesInfraDto.CnyesStockQuoteDataDto
 }
 
 // formatRevenue 格式化財報資料
-func (s *StockService) formatRevenue(data cnyesInfraDto.CnyesRevenueDataDto) *stockDto.RevenueDto {
+func (s *stockService) formatRevenue(data cnyesInfraDto.CnyesRevenueDataDto) *stockDto.RevenueDto {
 	return &stockDto.RevenueDto{
 		Time:            data.Time,
 		Code:            data.Code,
@@ -54,7 +54,7 @@ func (s *StockService) formatRevenue(data cnyesInfraDto.CnyesRevenueDataDto) *st
 }
 
 // formatStockQuote 格式化股票報價資料
-func (s *StockService) formatStockQuote(data cnyesInfraDto.CnyesStockQuoteDataDto) *stockDto.StockQuoteInfo {
+func (s *stockService) formatStockQuote(data cnyesInfraDto.CnyesStockQuoteDataDto) *stockDto.StockQuoteInfo {
 	return &stockDto.StockQuoteInfo{
 		// 基本資訊
 		StockID:   data.StockID,
@@ -115,7 +115,7 @@ func (s *StockService) formatStockQuote(data cnyesInfraDto.CnyesStockQuoteDataDt
 }
 
 // convertToChartData 轉換營收資料為圖表格式
-func (s *StockService) convertToChartData(revenueData *stockDto.RevenueDto) []imageutil.RevenueChartData {
+func (s *stockService) convertToChartData(revenueData *stockDto.RevenueDto) []imageutil.RevenueChartData {
 	if revenueData == nil || len(revenueData.Time) == 0 {
 		return []imageutil.RevenueChartData{}
 	}

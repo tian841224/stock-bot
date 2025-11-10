@@ -11,10 +11,11 @@ import (
 
 type TgBotClient struct {
 	Client *tgbotapi.BotAPI
+	logger logger.Logger
 }
 
 // NewBot 初始化 Telegram Bot 並設定 webhook
-func NewBot(cfg config.Config) (*TgBotClient, error) {
+func NewBot(cfg config.Config, log logger.Logger) (*TgBotClient, error) {
 	client, err := tgbotapi.NewBotAPI(cfg.TELEGRAM_BOT_TOKEN)
 	if err != nil {
 		return nil, err
@@ -40,7 +41,7 @@ func NewBot(cfg config.Config) (*TgBotClient, error) {
 			return nil, err
 		}
 	}
-	return &TgBotClient{Client: client}, nil
+	return &TgBotClient{Client: client, logger: log}, nil
 }
 
 // SendMessage 發送訊息
@@ -49,7 +50,7 @@ func (c *TgBotClient) SendMessage(chatID int64, text string) error {
 	msg.ParseMode = tgbotapi.ModeHTML
 	_, err := c.Client.Send(msg)
 	if err != nil {
-		logger.Log.Error("發送訊息失敗", zap.Error(err))
+		c.logger.Error("發送訊息失敗", zap.Error(err))
 	}
 	return err
 }
@@ -63,7 +64,7 @@ func (c *TgBotClient) SendMessageWithKeyboard(chatID int64, text string, keyboar
 	}
 	_, err := c.Client.Send(msg)
 	if err != nil {
-		logger.Log.Error("發送帶有鍵盤的訊息失敗", zap.Error(err))
+		c.logger.Error("發送帶有鍵盤的訊息失敗", zap.Error(err))
 	}
 	return err
 }
@@ -74,7 +75,7 @@ func (c *TgBotClient) SendMessageHTML(chatID int64, text string) error {
 	msg.ParseMode = tgbotapi.ModeHTML
 	_, err := c.Client.Send(msg)
 	if err != nil {
-		logger.Log.Error("發送 HTML 訊息失敗", zap.Error(err))
+		c.logger.Error("發送 HTML 訊息失敗", zap.Error(err))
 	}
 	return err
 }
@@ -89,7 +90,7 @@ func (c *TgBotClient) SendPhoto(chatID int64, data []byte, caption string) error
 	photo.ParseMode = tgbotapi.ModeHTML
 	_, err := c.Client.Send(photo)
 	if err != nil {
-		logger.Log.Error("發送圖片失敗", zap.Error(err))
+		c.logger.Error("發送圖片失敗", zap.Error(err))
 	}
 	return err
 }

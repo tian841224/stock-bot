@@ -12,37 +12,46 @@ import (
 	"go.uber.org/zap"
 )
 
-type StockSyncService struct {
-	symbolsRepo   repository.SymbolRepository
-	finmindClient finmindtrade.FinmindTradeAPIInterface
+// StockSyncService 股票同步服務介面
+type StockSyncService interface {
+	SyncTaiwanStockInfo() error
+	SyncUSStockInfo() error
+	GetSyncStats() (map[string]int, error)
 }
 
-func NewStockSyncService(symbolsRepo repository.SymbolRepository, finmindClient finmindtrade.FinmindTradeAPIInterface) *StockSyncService {
-	return &StockSyncService{
+type stockSyncService struct {
+	symbolsRepo   repository.SymbolRepository
+	finmindClient finmindtrade.FinmindTradeAPIInterface
+	logger        logger.Logger
+}
+
+func NewStockSyncService(symbolsRepo repository.SymbolRepository, finmindClient finmindtrade.FinmindTradeAPIInterface, log logger.Logger) StockSyncService {
+	return &stockSyncService{
 		symbolsRepo:   symbolsRepo,
 		finmindClient: finmindClient,
+		logger:        log,
 	}
 }
 
 // SyncTaiwanStockInfo 同步台灣股票資訊
-func (s *StockSyncService) SyncTaiwanStockInfo() error {
-	logger.Log.Info("開始同步台灣股票資訊...")
+func (s *stockSyncService) SyncTaiwanStockInfo() error {
+	s.logger.Info("開始同步台灣股票資訊...")
 
 	// 呼叫 FinMind API
 	response, err := s.finmindClient.GetTaiwanStockInfo()
 	if err != nil {
-		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
+		s.logger.Error("呼叫 FinMind API 失敗", zap.Error(err))
 		return err
 	}
 
 	if response.Status != 200 {
-		logger.Log.Error("FinMind API 回應錯誤",
+		s.logger.Error("FinMind API 回應錯誤",
 			zap.Int("status", response.Status),
 			zap.String("message", response.Msg))
 		return nil // 不返回錯誤，避免程式中斷
 	}
 
-	logger.Log.Info("成功取得股票資訊", zap.Int("count", len(response.Data)))
+	s.logger.Info("成功取得股票資訊", zap.Int("count", len(response.Data)))
 
 	// 轉換為 models.Symbol
 	symbols := make([]*models.Symbol, 0, len(response.Data))
@@ -58,11 +67,11 @@ func (s *StockSyncService) SyncTaiwanStockInfo() error {
 	// 非同步批次處理
 	successCount, errorCount, err := s.asyncBatchUpsert(symbols)
 	if err != nil {
-		logger.Log.Error("批次更新股票資訊失敗", zap.Error(err))
+		s.logger.Error("批次更新股票資訊失敗", zap.Error(err))
 		return err
 	}
 
-	logger.Log.Info("股票資訊同步完成",
+	s.logger.Info("股票資訊同步完成",
 		zap.Int("成功", successCount),
 		zap.Int("失敗", errorCount),
 		zap.Int("總計", len(response.Data)))
@@ -71,24 +80,24 @@ func (s *StockSyncService) SyncTaiwanStockInfo() error {
 }
 
 // SyncUSStockInfo 同步美股股票資訊
-func (s *StockSyncService) SyncUSStockInfo() error {
-	logger.Log.Info("開始同步美股股票資訊...")
+func (s *stockSyncService) SyncUSStockInfo() error {
+	s.logger.Info("開始同步美股股票資訊...")
 
 	// 呼叫 FinMind API
 	response, err := s.finmindClient.GetUSStockInfo()
 	if err != nil {
-		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
+		s.logger.Error("呼叫 FinMind API 失敗", zap.Error(err))
 		return err
 	}
 
 	if response.Status != 200 {
-		logger.Log.Error("FinMind API 回應錯誤",
+		s.logger.Error("FinMind API 回應錯誤",
 			zap.Int("status", response.Status),
 			zap.String("message", response.Msg))
 		return nil // 不返回錯誤，避免程式中斷
 	}
 
-	logger.Log.Info("成功取得股票資訊", zap.Int("count", len(response.Data)))
+	s.logger.Info("成功取得股票資訊", zap.Int("count", len(response.Data)))
 
 	// 轉換為 models.Symbol
 	symbols := make([]*models.Symbol, 0, len(response.Data))
@@ -104,11 +113,11 @@ func (s *StockSyncService) SyncUSStockInfo() error {
 	// 非同步批次處理
 	successCount, errorCount, err := s.asyncBatchUpsert(symbols)
 	if err != nil {
-		logger.Log.Error("批次更新股票資訊失敗", zap.Error(err))
+		s.logger.Error("批次更新股票資訊失敗", zap.Error(err))
 		return err
 	}
 
-	logger.Log.Info("股票資訊同步完成",
+	s.logger.Info("股票資訊同步完成",
 		zap.Int("成功", successCount),
 		zap.Int("失敗", errorCount),
 		zap.Int("總計", len(response.Data)))
@@ -117,7 +126,7 @@ func (s *StockSyncService) SyncUSStockInfo() error {
 }
 
 // asyncBatchUpsert 非同步批次更新或建立股票資訊
-func (s *StockSyncService) asyncBatchUpsert(symbols []*models.Symbol) (totalSuccess, totalError int, err error) {
+func (s *stockSyncService) asyncBatchUpsert(symbols []*models.Symbol) (totalSuccess, totalError int, err error) {
 	const (
 		batchSize  = 100 // 每個批次的大小
 		maxWorkers = 5   // 最大工作者數量
@@ -125,7 +134,7 @@ func (s *StockSyncService) asyncBatchUpsert(symbols []*models.Symbol) (totalSucc
 
 	// 將資料分割成批次
 	batches := s.splitIntoBatches(symbols, batchSize)
-	logger.Log.Info("開始非同步批次處理",
+	s.logger.Info("開始非同步批次處理",
 		zap.Int("總數量", len(symbols)),
 		zap.Int("批次數", len(batches)),
 		zap.Int("工作者數", maxWorkers))
@@ -158,7 +167,7 @@ func (s *StockSyncService) asyncBatchUpsert(symbols []*models.Symbol) (totalSucc
 	// 收集結果
 	for result := range resultChan {
 		if result.err != nil {
-			logger.Log.Warn("批次處理失敗",
+			s.logger.Warn("批次處理失敗",
 				zap.Int("批次ID", result.batchID),
 				zap.Error(result.err))
 			// 不直接返回錯誤，繼續處理其他批次
@@ -167,7 +176,7 @@ func (s *StockSyncService) asyncBatchUpsert(symbols []*models.Symbol) (totalSucc
 		totalError += result.errorCount
 	}
 
-	logger.Log.Info("非同步批次處理完成",
+	s.logger.Info("非同步批次處理完成",
 		zap.Int("成功", totalSuccess),
 		zap.Int("失敗", totalError))
 
@@ -183,13 +192,13 @@ type batchResult struct {
 }
 
 // worker 工作者函式
-func (s *StockSyncService) worker(workerID int, batchChan <-chan []*models.Symbol, resultChan chan<- batchResult, wg *sync.WaitGroup) {
+func (s *stockSyncService) worker(workerID int, batchChan <-chan []*models.Symbol, resultChan chan<- batchResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	batchID := 0
 	for batch := range batchChan {
 		batchID++
-		logger.Log.Debug("工作者開始處理批次",
+		s.logger.Debug("工作者開始處理批次",
 			zap.Int("工作者ID", workerID),
 			zap.Int("批次ID", batchID),
 			zap.Int("批次大小", len(batch)))
@@ -203,7 +212,7 @@ func (s *StockSyncService) worker(workerID int, batchChan <-chan []*models.Symbo
 			err:          err,
 		}
 
-		logger.Log.Debug("工作者完成批次處理",
+		s.logger.Debug("工作者完成批次處理",
 			zap.Int("工作者ID", workerID),
 			zap.Int("批次ID", batchID),
 			zap.Int("成功", successCount),
@@ -212,7 +221,7 @@ func (s *StockSyncService) worker(workerID int, batchChan <-chan []*models.Symbo
 }
 
 // splitIntoBatches 將資料分割成批次
-func (s *StockSyncService) splitIntoBatches(symbols []*models.Symbol, batchSize int) [][]*models.Symbol {
+func (s *stockSyncService) splitIntoBatches(symbols []*models.Symbol, batchSize int) [][]*models.Symbol {
 	var batches [][]*models.Symbol
 
 	for i := 0; i < len(symbols); i += batchSize {
@@ -227,6 +236,6 @@ func (s *StockSyncService) splitIntoBatches(symbols []*models.Symbol, batchSize 
 }
 
 // GetSyncStats 取得同步統計資訊
-func (s *StockSyncService) GetSyncStats() (map[string]int, error) {
+func (s *stockSyncService) GetSyncStats() (map[string]int, error) {
 	return s.symbolsRepo.GetMarketStats()
 }

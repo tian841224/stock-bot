@@ -10,7 +10,6 @@ import (
 	fugleDto "github.com/tian841224/stock-bot/internal/infrastructure/fugle/dto"
 	twseDto "github.com/tian841224/stock-bot/internal/infrastructure/twse/dto"
 	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
-	"github.com/tian841224/stock-bot/pkg/logger"
 	"github.com/tian841224/stock-bot/pkg/utils"
 
 	"go.uber.org/zap"
@@ -19,8 +18,8 @@ import (
 // ========== 股價相關方法 ==========
 
 // GetStockPrice 取得股票價格資訊
-func (s *StockService) GetStockPrice(stockID string, date ...string) (*stockDto.StockPriceInfo, error) {
-	logger.Log.Info("取得股票價格", zap.String("stockID", stockID))
+func (s *stockService) GetStockPrice(stockID string, date ...string) (*stockDto.StockPriceInfo, error) {
+	s.logger.Info("取得股票價格", zap.String("stockID", stockID))
 
 	// 建立請求參數
 	requestDto := dto.FinmindtradeRequestDto{
@@ -41,7 +40,7 @@ func (s *StockService) GetStockPrice(stockID string, date ...string) (*stockDto.
 	// 呼叫 FinMind API
 	response, err := s.finmindClient.GetTaiwanStockPrice(requestDto)
 	if err != nil {
-		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
+		s.logger.Error("呼叫 FinMind API 失敗", zap.Error(err))
 		return nil, err
 	}
 
@@ -92,13 +91,13 @@ func (s *StockService) GetStockPrice(stockID string, date ...string) (*stockDto.
 }
 
 // GetStockPerformance 取得股票績效
-func (s *StockService) GetStockPerformance(stockID string) (*stockDto.StockPerformanceResponseDto, error) {
-	logger.Log.Info("取得股票績效", zap.String("stockID", stockID))
+func (s *stockService) GetStockPerformance(stockID string) (*stockDto.StockPerformanceResponseDto, error) {
+	s.logger.Info("取得股票績效", zap.String("stockID", stockID))
 
 	// 取得股票名稱
 	symbol, err := s.symbolsRepo.GetBySymbolAndMarket(stockID, "TW")
 	if err != nil || symbol == nil {
-		logger.Log.Error("取得股票名稱失敗", zap.Error(err))
+		s.logger.Error("取得股票名稱失敗", zap.Error(err))
 		return nil, fmt.Errorf("查無股票名稱")
 	}
 
@@ -142,7 +141,7 @@ func (s *StockService) GetStockPerformance(stockID string) (*stockDto.StockPerfo
 
 	splitResponse, err := s.finmindClient.GetTaiwanStockSplitPrice(splitRequestDto)
 	if err != nil {
-		logger.Log.Error("取得分割資料失敗", zap.Error(err))
+		s.logger.Error("取得分割資料失敗", zap.Error(err))
 		return nil, err
 	}
 
@@ -161,7 +160,7 @@ func (s *StockService) GetStockPerformance(stockID string) (*stockDto.StockPerfo
 
 		startResponse, err := s.finmindClient.GetTaiwanStockPrice(startRequestDto)
 		if err != nil {
-			logger.Log.Error("取得起始股價失敗", zap.Error(err))
+			s.logger.Error("取得起始股價失敗", zap.Error(err))
 			continue
 		}
 
@@ -180,7 +179,7 @@ func (s *StockService) GetStockPerformance(stockID string) (*stockDto.StockPerfo
 				// 解析分割日期
 				splitDate, err := time.Parse("2006-01-02", split.Date)
 				if err != nil {
-					logger.Log.Error("解析分割日期失敗", zap.String("date", split.Date), zap.Error(err))
+					s.logger.Error("解析分割日期失敗", zap.String("date", split.Date), zap.Error(err))
 					continue
 				}
 
@@ -216,7 +215,7 @@ func (s *StockService) GetStockPerformance(stockID string) (*stockDto.StockPerfo
 }
 
 // GetStockPriceHistory 取得股票每日價格歷史（近5年）
-func (s *StockService) GetStockPriceHistory(stockID string) ([]stockDto.StockPerformanceData, error) {
+func (s *stockService) GetStockPriceHistory(stockID string) ([]stockDto.StockPerformanceData, error) {
 	now := time.Now()
 	var performancePeriods []stockDto.StockPerformanceData
 
@@ -230,7 +229,7 @@ func (s *StockService) GetStockPriceHistory(stockID string) ([]stockDto.StockPer
 
 	priceResponse, err := s.finmindClient.GetTaiwanStockPrice(startRequestDto)
 	if err != nil {
-		logger.Log.Error("取得股價資料失敗", zap.Error(err))
+		s.logger.Error("取得股價資料失敗", zap.Error(err))
 		return nil, err
 	}
 
@@ -247,7 +246,7 @@ func (s *StockService) GetStockPriceHistory(stockID string) ([]stockDto.StockPer
 
 	splitResponse, err := s.finmindClient.GetTaiwanStockSplitPrice(splitRequestDto)
 	if err != nil {
-		logger.Log.Error("取得分割資料失敗", zap.Error(err))
+		s.logger.Error("取得分割資料失敗", zap.Error(err))
 		return nil, err
 	}
 
@@ -329,7 +328,7 @@ func (s *StockService) GetStockPriceHistory(stockID string) ([]stockDto.StockPer
 }
 
 // GetAfterTradingVolume 取得盤後資訊
-func (s *StockService) GetAfterTradingVolume(symbol, date string) (*twseDto.AfterTradingVolumeResponseDto, error) {
+func (s *stockService) GetAfterTradingVolume(symbol, date string) (*twseDto.AfterTradingVolumeResponseDto, error) {
 	if strings.TrimSpace(symbol) == "" {
 		return nil, fmt.Errorf("symbol 為必填參數")
 	}
@@ -383,14 +382,14 @@ func (s *StockService) GetAfterTradingVolume(symbol, date string) (*twseDto.Afte
 }
 
 // GetStockNews 取得股票新聞
-func (s *StockService) GetStockNews(stockID string) ([]dto.TaiwanNewsResponseData, error) {
+func (s *stockService) GetStockNews(stockID string) ([]dto.TaiwanNewsResponseData, error) {
 	requestDto := dto.FinmindtradeRequestDto{
 		DataID:    stockID,
 		StartDate: time.Now().Format("2006-01-02"),
 	}
 	response, err := s.finmindClient.GetTaiwanStockNews(requestDto)
 	if err != nil {
-		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
+		s.logger.Error("呼叫 FinMind API 失敗", zap.Error(err))
 		return nil, err
 	}
 	if response.Status != 200 {
@@ -400,7 +399,7 @@ func (s *StockService) GetStockNews(stockID string) ([]dto.TaiwanNewsResponseDat
 }
 
 // GetStockIntradayQuote 取得股票盤中即時資料
-func (s *StockService) GetStockIntradayQuote(dto fugleDto.FugleStockQuoteRequestDto) (*fugleDto.FugleStockQuoteResponseDto, error) {
+func (s *stockService) GetStockIntradayQuote(dto fugleDto.FugleStockQuoteRequestDto) (*fugleDto.FugleStockQuoteResponseDto, error) {
 	response, err := s.fugleClient.GetStockIntradayQuote(dto)
 	if err != nil {
 		return nil, err
@@ -410,7 +409,7 @@ func (s *StockService) GetStockIntradayQuote(dto fugleDto.FugleStockQuoteRequest
 }
 
 // GetStockHistoricalCandles 取得股票歷史 K 線
-func (s *StockService) GetStockHistoricalCandles(dto fugleDto.FugleCandlesRequestDto) (*fugleDto.FugleCandlesResponseDto, error) {
+func (s *stockService) GetStockHistoricalCandles(dto fugleDto.FugleCandlesRequestDto) (*fugleDto.FugleCandlesResponseDto, error) {
 	response, err := s.fugleClient.GetStockHistoricalCandles(dto)
 	if err != nil {
 		return nil, err
@@ -419,7 +418,7 @@ func (s *StockService) GetStockHistoricalCandles(dto fugleDto.FugleCandlesReques
 }
 
 // GetStockInfo 取得股票詳細資訊
-func (s *StockService) GetStockInfo(stockID string) (*stockDto.StockQuoteInfo, error) {
+func (s *stockService) GetStockInfo(stockID string) (*stockDto.StockQuoteInfo, error) {
 	// logger.Log.Info("取得股票詳細資訊", zap.String("stockID", stockID))
 
 	response, err := s.cnyesAPI.GetStockQuote(stockID)
@@ -443,7 +442,7 @@ func (s *StockService) GetStockInfo(stockID string) (*stockDto.StockQuoteInfo, e
 }
 
 // GetStockQuote 取得股票報價資訊
-func (s *StockService) GetStockQuote(stockID string) (*stockDto.StockQuoteInfo, error) {
+func (s *stockService) GetStockQuote(stockID string) (*stockDto.StockQuoteInfo, error) {
 	// 建構股票符號 (格式: TWS:2330:STOCK)
 	symbol := fmt.Sprintf("TWS:%s:STOCK", stockID)
 
@@ -468,13 +467,13 @@ func (s *StockService) GetStockQuote(stockID string) (*stockDto.StockQuoteInfo, 
 }
 
 // GetTopVolumeItems 取得交易量前20名
-func (s *StockService) GetTopVolumeItems() ([]*stockDto.StockPriceInfo, error) {
-	logger.Log.Info("取得交易量前20名")
+func (s *stockService) GetTopVolumeItems() ([]*stockDto.StockPriceInfo, error) {
+	s.logger.Info("取得交易量前20名")
 
 	// 呼叫 TWSE API
 	response, err := s.twseAPI.GetTopVolumeItems()
 	if err != nil {
-		logger.Log.Error("呼叫 TWSE API 失敗", zap.Error(err))
+		s.logger.Error("呼叫 TWSE API 失敗", zap.Error(err))
 		return nil, err
 	}
 
@@ -544,8 +543,8 @@ func (s *StockService) GetTopVolumeItems() ([]*stockDto.StockPriceInfo, error) {
 }
 
 // GetStockAnalysis 取得股票分析圖表
-func (s *StockService) GetStockAnalysis(stockID string) ([]byte, string, error) {
-	logger.Log.Info("取得股票分析", zap.String("stockID", stockID))
+func (s *stockService) GetStockAnalysis(stockID string) ([]byte, string, error) {
+	s.logger.Info("取得股票分析", zap.String("stockID", stockID))
 
 	requestDto := dto.FinmindtradeRequestDto{
 		StockID: stockID,
@@ -554,7 +553,7 @@ func (s *StockService) GetStockAnalysis(stockID string) ([]byte, string, error) 
 	// 呼叫 FinMind API
 	response, err := s.finmindClient.GetTaiwanStockAnalysisPlot(requestDto)
 	if err != nil {
-		logger.Log.Error("呼叫 FinMind API 失敗", zap.Error(err))
+		s.logger.Error("呼叫 FinMind API 失敗", zap.Error(err))
 		return nil, "", err
 	}
 

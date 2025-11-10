@@ -15,7 +15,6 @@ type UserSubscriptionRepository interface {
 	AddUserSubscriptionItem(userID uint, item models.SubscriptionItem) error
 	UpdateUserSubscriptionItem(userID uint, item models.SubscriptionItem, status bool) error
 	GetUserSubscriptionList(userID uint) ([]*models.Subscription, error)
-
 	// 訂閱股票相關
 	AddUserSubscriptionStock(userID uint, stockSymbol string) (bool, error)
 	DeleteUserSubscriptionStock(userID uint, stockSymbol string) (bool, error)

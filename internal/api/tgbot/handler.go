@@ -14,11 +14,12 @@ import (
 
 type TgHandler struct {
 	cfg              *config.Config
-	tgServiceHandler *tgService.TgServiceHandler
+	tgServiceHandler tgService.TgServiceHandler
+	logger           logger.Logger
 }
 
-func NewTgHandler(cfg *config.Config, tgServiceHandler *tgService.TgServiceHandler) *TgHandler {
-	return &TgHandler{cfg: cfg, tgServiceHandler: tgServiceHandler}
+func NewTgHandler(cfg *config.Config, tgServiceHandler tgService.TgServiceHandler, log logger.Logger) *TgHandler {
+	return &TgHandler{cfg: cfg, tgServiceHandler: tgServiceHandler, logger: log}
 }
 
 // Webhook 驗證 X-Telegram-Bot-Api-Secret-Token 並回應 200
@@ -44,12 +45,12 @@ func (h *TgHandler) Webhook(c *gin.Context) {
 	go func(u tgbotapi.Update) {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Log.Error("處理 Telegram 更新發生 panic", zap.Any("recover", r))
+				h.logger.Error("處理 Telegram 更新發生 panic", zap.Any("recover", r))
 			}
 		}()
 
 		if err := h.tgServiceHandler.ProcessUpdate(&u); err != nil {
-			logger.Log.Error("處理 Telegram 更新失敗", zap.Error(err))
+			h.logger.Error("處理 Telegram 更新失敗", zap.Error(err))
 		}
 	}(update)
 }
