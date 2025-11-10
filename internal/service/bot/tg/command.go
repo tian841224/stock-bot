@@ -23,6 +23,7 @@ type TgCommandHandler struct {
 	userService             user.UserService
 	userSubscriptionService user_subscription.UserSubscriptionService
 	subscriptionItemMap     map[string]models.SubscriptionItem
+	logger                  logger.Logger
 }
 
 func NewTgCommandHandler(
@@ -30,6 +31,7 @@ func NewTgCommandHandler(
 	tgService TgService,
 	userService user.UserService,
 	userSubscriptionService user_subscription.UserSubscriptionService,
+	log logger.Logger,
 ) *TgCommandHandler {
 	return &TgCommandHandler{
 		botClient:               botClient,
@@ -37,6 +39,7 @@ func NewTgCommandHandler(
 		userService:             userService,
 		userSubscriptionService: userSubscriptionService,
 		subscriptionItemMap:     models.SubscriptionItemMap,
+		logger:                  log,
 	}
 }
 
@@ -244,7 +247,7 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item string, sta
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(strconv.FormatInt(userID, 10), models.UserTypeTelegram)
 	if err != nil {
-		logger.Log.Error("取得使用者失敗", zap.Error(err))
+		c.logger.Error("取得使用者失敗", zap.Error(err))
 		return c.botClient.SendMessage(userID, "無法取得使用者")
 	}
 
@@ -256,7 +259,7 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item string, sta
 			// 如果要訂閱，則新增
 			if status == SubscriptionStatusActive {
 				if err := c.userSubscriptionService.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
-					logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
+					c.logger.Error("新增訂閱項目失敗", zap.Error(err))
 					return c.botClient.SendMessage(userID, "訂閱失敗，請稍後再試")
 				}
 				return c.botClient.SendMessage(userID, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
@@ -265,13 +268,13 @@ func (c *TgCommandHandler) updateUserSubscription(userID int64, item string, sta
 			return c.botClient.SendMessage(userID, fmt.Sprintf("您尚未訂閱：%s", subscriptionItem.GetName()))
 		}
 		// 其他錯誤應該記錄並返回
-		logger.Log.Error("取得訂閱項目失敗", zap.Error(err))
+		c.logger.Error("取得訂閱項目失敗", zap.Error(err))
 		return c.botClient.SendMessage(userID, "操作失敗，請稍後再試")
 	}
 
 	// 更新訂閱狀態
 	if err := c.userSubscriptionService.UpdateUserSubscriptionItem(user.ID, subscriptionItem, status); err != nil {
-		logger.Log.Error("更新訂閱狀態失敗", zap.Error(err))
+		c.logger.Error("更新訂閱狀態失敗", zap.Error(err))
 		return c.botClient.SendMessage(userID, "操作失敗，請稍後再試")
 	}
 
@@ -291,7 +294,7 @@ func (c *TgCommandHandler) CommandAddStock(userID int64, symbol string) error {
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(strconv.FormatInt(userID, 10), models.UserTypeTelegram)
 	if err != nil {
-		logger.Log.Error("取得使用者失敗", zap.Error(err))
+		c.logger.Error("取得使用者失敗", zap.Error(err))
 		return c.botClient.SendMessage(userID, "無法取得使用者")
 	}
 
@@ -313,7 +316,7 @@ func (c *TgCommandHandler) CommandDeleteStock(userID int64, symbol string) error
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(strconv.FormatInt(userID, 10), models.UserTypeTelegram)
 	if err != nil {
-		logger.Log.Error("取得使用者失敗", zap.Error(err))
+		c.logger.Error("取得使用者失敗", zap.Error(err))
 		return c.botClient.SendMessage(userID, "無法取得使用者")
 	}
 
@@ -331,7 +334,7 @@ func (c *TgCommandHandler) CommandListSubscriptions(userID int64) error {
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(strconv.FormatInt(userID, 10), models.UserTypeTelegram)
 	if err != nil {
-		logger.Log.Error("取得使用者失敗", zap.Error(err))
+		c.logger.Error("取得使用者失敗", zap.Error(err))
 		return c.botClient.SendMessage(userID, "無法取得使用者")
 	}
 

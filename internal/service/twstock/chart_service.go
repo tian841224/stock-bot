@@ -6,8 +6,6 @@ import (
 	fugleDto "github.com/tian841224/stock-bot/internal/infrastructure/fugle/dto"
 	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
 	"github.com/tian841224/stock-bot/pkg/imageutil"
-	"github.com/tian841224/stock-bot/pkg/logger"
-
 	"go.uber.org/zap"
 )
 
@@ -15,7 +13,7 @@ import (
 
 // GetStockPerformanceWithChart 取得股票績效並生成圖表
 func (s *stockService) GetStockPerformanceWithChart(stockID string, chartType string) (*stockDto.StockPerformanceResponseDto, error) {
-	logger.Log.Info("取得股票績效並生成圖表", zap.String("stockID", stockID), zap.String("chartType", chartType))
+	s.logger.Info("取得股票績效並生成圖表", zap.String("stockID", stockID), zap.String("chartType", chartType))
 
 	// 先取得績效資料
 	performanceData, err := s.GetStockPriceHistory(stockID)
@@ -30,7 +28,7 @@ func (s *stockService) GetStockPerformanceWithChart(stockID string, chartType st
 	// 取得股票名稱用於圖表標題
 	symbol, err := s.symbolsRepo.GetBySymbolAndMarket(stockID, "TW")
 	if err != nil || symbol == nil {
-		logger.Log.Error("取得股票名稱失敗", zap.Error(err))
+		s.logger.Error("取得股票名稱失敗", zap.Error(err))
 		return nil, fmt.Errorf("查無股票名稱")
 	}
 
@@ -52,7 +50,7 @@ func (s *stockService) GetStockPerformanceWithChart(stockID string, chartType st
 	chartBytes, err = imageutil.GeneratePerformanceLineChart(chartData, title)
 
 	if err != nil {
-		logger.Log.Error("生成圖表失敗", zap.Error(err))
+		s.logger.Error("生成圖表失敗", zap.Error(err))
 		// 即使圖表生成失敗，仍然回傳績效資料
 		return performanceResponse, nil
 	}
@@ -104,7 +102,7 @@ func (s *stockService) GetStockHistoricalCandlesChart(dto fugleDto.FugleCandlesR
 
 // GetStockRevenueChart 取得股票營收圖表
 func (s *stockService) GetStockRevenueChart(stockID string) ([]byte, error) {
-	logger.Log.Info("產生股票營收圖表", zap.String("stockID", stockID))
+	s.logger.Info("產生股票營收圖表", zap.String("stockID", stockID))
 
 	// 取得營收資料
 	revenueData, err := s.GetStockRevenue(stockID)

@@ -12,10 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tian841224/stock-bot/pkg/logger"
-
 	"github.com/golang/freetype"
-	"go.uber.org/zap"
 )
 
 // ChartColors 圖表顏色配置
@@ -208,7 +205,6 @@ func GeneratePerformanceChartPNG(data []PerformanceData, config ChartConfig) ([]
 
 	// 載入字型 - 使用 go-findfont 動態查找支援中文的字型
 	ttf, err := LoadChineseFont()
-	logger.Log.Info("載入字型", zap.String("font_info", fmt.Sprintf("%+v", ttf)))
 	if err != nil {
 		return nil, fmt.Errorf("載入字型失敗: %v", err)
 	}

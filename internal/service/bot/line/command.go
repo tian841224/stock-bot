@@ -22,6 +22,7 @@ type LineCommandHandler struct {
 	userSubscriptionService user_subscription.UserSubscriptionService
 	subscriptionItemMap     map[string]models.SubscriptionItem
 	imgbbClient             *imgbb.ImgBBClient
+	logger                  logger.Logger
 }
 
 func NewLineCommandHandler(
@@ -30,6 +31,7 @@ func NewLineCommandHandler(
 	userService user.UserService,
 	userSubscriptionService user_subscription.UserSubscriptionService,
 	imgbbClient *imgbb.ImgBBClient,
+	log logger.Logger,
 ) *LineCommandHandler {
 	return &LineCommandHandler{
 		botClient:               botClient,
@@ -38,6 +40,7 @@ func NewLineCommandHandler(
 		userSubscriptionService: userSubscriptionService,
 		subscriptionItemMap:     models.SubscriptionItemMap,
 		imgbbClient:             imgbbClient,
+		logger:                  log,
 	}
 }
 
@@ -239,7 +242,7 @@ func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item str
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(userID, models.UserTypeLine)
 	if err != nil {
-		logger.Log.Error("取得使用者失敗", zap.Error(err))
+		c.logger.Error("取得使用者失敗", zap.Error(err))
 		return c.botClient.ReplyMessage(replyToken, "無法取得使用者")
 	}
 
@@ -249,7 +252,7 @@ func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item str
 		// 如果沒有找到訂閱項目，且是要訂閱，則新增
 		if status {
 			if err := c.userSubscriptionService.AddUserSubscriptionItem(user.ID, subscriptionItem); err != nil {
-				logger.Log.Error("新增訂閱項目失敗", zap.Error(err))
+				c.logger.Error("新增訂閱項目失敗", zap.Error(err))
 				return c.botClient.ReplyMessage(replyToken, "訂閱失敗，請稍後再試")
 			}
 			return c.botClient.ReplyMessage(replyToken, fmt.Sprintf("訂閱成功：%s", subscriptionItem.GetName()))
@@ -269,7 +272,7 @@ func (c *LineCommandHandler) updateUserSubscription(userID, replyToken, item str
 
 	// 更新訂閱狀態
 	if err := c.userSubscriptionService.UpdateUserSubscriptionItem(user.ID, subscriptionItem, status); err != nil {
-		logger.Log.Error("更新訂閱狀態失敗", zap.Error(err))
+		c.logger.Error("更新訂閱狀態失敗", zap.Error(err))
 		return c.botClient.ReplyMessage(replyToken, "操作失敗，請稍後再試")
 	}
 
@@ -289,7 +292,7 @@ func (c *LineCommandHandler) CommandAddStock(userID, replyToken, symbol string) 
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(userID, models.UserTypeLine)
 	if err != nil {
-		logger.Log.Error("取得使用者失敗", zap.Error(err))
+		c.logger.Error("取得使用者失敗", zap.Error(err))
 		return c.botClient.ReplyMessage(replyToken, "無法取得使用者")
 	}
 
@@ -311,7 +314,7 @@ func (c *LineCommandHandler) CommandDeleteStock(userID, replyToken, symbol strin
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(userID, models.UserTypeLine)
 	if err != nil {
-		logger.Log.Error("取得使用者失敗", zap.Error(err))
+		c.logger.Error("取得使用者失敗", zap.Error(err))
 		return c.botClient.ReplyMessage(replyToken, "無法取得使用者")
 	}
 
@@ -329,7 +332,7 @@ func (c *LineCommandHandler) CommandListSubscriptions(userID, replyToken string)
 	// 取得使用者資料
 	user, err := c.userService.GetUserByAccountID(userID, models.UserTypeLine)
 	if err != nil {
-		logger.Log.Error("取得使用者失敗", zap.Error(err))
+		c.logger.Error("取得使用者失敗", zap.Error(err))
 		return c.botClient.ReplyMessage(replyToken, "無法取得使用者")
 	}
 

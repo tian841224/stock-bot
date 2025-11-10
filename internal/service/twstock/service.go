@@ -10,6 +10,7 @@ import (
 	twseDto "github.com/tian841224/stock-bot/internal/infrastructure/twse/dto"
 	"github.com/tian841224/stock-bot/internal/repository"
 	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
+	"github.com/tian841224/stock-bot/pkg/logger"
 )
 
 // StockService 股票服務介面
@@ -41,6 +42,7 @@ type stockService struct {
 	fugleClient   *fugle.FugleAPI
 	symbolsRepo   repository.SymbolRepository
 	domainService *DomainService
+	logger        logger.Logger
 }
 
 // NewStockService 建立股票服務實例
@@ -50,6 +52,7 @@ func NewStockService(
 	cnyesAPI *cnyes.CnyesAPI,
 	fugleClient *fugle.FugleAPI,
 	symbolsRepo repository.SymbolRepository,
+	log logger.Logger,
 ) StockService {
 	return &stockService{
 		finmindClient: finmindClient,
@@ -58,6 +61,7 @@ func NewStockService(
 		fugleClient:   fugleClient,
 		symbolsRepo:   symbolsRepo,
 		domainService: NewDomainService(),
+		logger:        log,
 	}
 }
 

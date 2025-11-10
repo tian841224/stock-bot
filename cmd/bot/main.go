@@ -36,6 +36,7 @@ import (
 // 初始化結果結構
 type InitResult struct {
 	cfg                  *config.Config
+	log                  logger.Logger
 	userRepo             repository.UserRepository
 	symbolsRepo          repository.SymbolRepository
 	userSubscriptionRepo repository.UserSubscriptionRepository
@@ -52,10 +53,17 @@ type InitResult struct {
 }
 
 func main() {
-	// 非同步初始化
-	initResult, err := asyncInit()
+	// 初始化日誌
+	log, err := logger.NewLogger()
 	if err != nil {
-		logger.Log.Panic("初始化失敗", zap.Error(err))
+		panic(fmt.Sprintf("初始化日誌失敗: %v", err))
+	}
+	defer log.Sync()
+
+	// 非同步初始化
+	initResult, err := asyncInit(log)
+	if err != nil {
+		log.Panic("初始化失敗", zap.Error(err))
 	}
 
 	// 設定 Gin 模式（根據環境變數自動設定）
@@ -65,7 +73,7 @@ func main() {
 		ginMode = "debug" // 預設為 debug 模式（開發環境）
 	}
 	gin.SetMode(ginMode)
-	logger.Log.Info("Gin 模式設定", zap.String("mode", ginMode))
+	log.Info("Gin 模式設定", zap.String("mode", ginMode))
 
 	// 建立 Gin 引擎與註冊路由
 	router := gin.Default()
@@ -78,28 +86,30 @@ func main() {
 	// 建立使用者訂閱服務
 	userSubscriptionService := user_subscription.NewUserSubscriptionService(initResult.userSubscriptionRepo)
 	// 建立 LINE Bot 服務層
-	lineSvc := lineService.NewLineService(initResult.stockService, userSubscriptionService)
+	lineSvc := lineService.NewLineService(initResult.stockService, userSubscriptionService, initResult.log)
 	lineCommandHandler := lineService.NewLineCommandHandler(
 		initResult.lineBotClient,
 		lineSvc,
 		initResult.userService,
 		userSubscriptionService,
 		initResult.imgbbClient,
+		initResult.log,
 	)
-	service := lineService.NewBotService(initResult.lineBotClient, lineCommandHandler, initResult.userService)
-	handler := linebot.NewLineBotHandler(service, initResult.lineBotClient)
+	service := lineService.NewBotService(initResult.lineBotClient, lineCommandHandler, initResult.userService, initResult.log)
+	handler := linebot.NewLineBotHandler(service, initResult.lineBotClient, initResult.log)
 	linebot.RegisterRoutes(router, handler, initResult.cfg.LINE_BOT_WEBHOOK_PATH)
 
 	// 建立 Telegram Bot 服務層
-	tgSvc := tgService.NewTgService(initResult.stockService, userSubscriptionService)
+	tgSvc := tgService.NewTgService(initResult.stockService, userSubscriptionService, initResult.log)
 	tgCommandHandler := tgService.NewTgCommandHandler(
 		initResult.tgBotClient,
 		tgSvc,
 		initResult.userService,
 		userSubscriptionService,
+		initResult.log,
 	)
-	tgServiceHandler := tgService.NewTgServiceHandler(tgCommandHandler, initResult.userService)
-	tgHandler := tgbot.NewTgHandler(initResult.cfg, tgServiceHandler)
+	tgServiceHandler := tgService.NewTgServiceHandler(tgCommandHandler, initResult.userService, initResult.log)
+	tgHandler := tgbot.NewTgHandler(initResult.cfg, tgServiceHandler, initResult.log)
 	tgbot.RegisterRoutes(router, tgHandler, initResult.cfg.TELEGRAM_BOT_WEBHOOK_PATH)
 
 	// 從環境變數讀取埠號，預設 8080
@@ -125,8 +135,8 @@ func main() {
 			serverErr <- err
 		}
 	}()
-	logger.Log.Info("HTTP 伺服器啟動成功")
-	logger.Log.Info("程式執行中...")
+	initResult.log.Info("HTTP 伺服器啟動成功")
+	initResult.log.Info("程式執行中...")
 
 	// 等待終止訊號或啟動錯誤
 	quit := make(chan os.Signal, 1)
@@ -136,9 +146,9 @@ func main() {
 	case <-quit:
 		// 繼續往下優雅關閉
 	case err := <-serverErr:
-		logger.Log.Error("啟動 HTTP 伺服器失敗", zap.Error(err))
+		initResult.log.Error("啟動 HTTP 伺服器失敗", zap.Error(err))
 		// 立刻以非 0 退出，先同步日誌
-		_ = logger.Log.Sync()
+		_ = initResult.log.Sync()
 		os.Exit(1)
 	}
 
@@ -147,32 +157,28 @@ func main() {
 
 	shutdownErr := server.Shutdown(ctx)
 	if shutdownErr != nil {
-		logger.Log.Error("伺服器關閉失敗", zap.Error(shutdownErr))
+		initResult.log.Error("伺服器關閉失敗", zap.Error(shutdownErr))
 	}
 
 	dbErr := db.Close()
 	if dbErr != nil {
-		logger.Log.Error("資料庫關閉失敗", zap.Error(dbErr))
+		initResult.log.Error("資料庫關閉失敗", zap.Error(dbErr))
 	}
 
 	if shutdownErr != nil || dbErr != nil {
 		// 有關閉錯誤，用非 0 退出；先同步日誌
-		_ = logger.Log.Sync()
+		_ = initResult.log.Sync()
 		os.Exit(1)
 	}
 }
 
 // 非同步初始化函數
-func asyncInit() (*InitResult, error) {
+func asyncInit(log logger.Logger) (*InitResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result := &InitResult{}
+	result := &InitResult{log: log}
 	var wg sync.WaitGroup
-
-	// 初始化日誌
-	logger.InitLogger()
-	defer logger.Log.Sync()
 
 	// 載入設定
 	cfg, err := config.LoadConfig()
@@ -180,32 +186,32 @@ func asyncInit() (*InitResult, error) {
 		return nil, fmt.Errorf("載入設定失敗: %v", err)
 	}
 	result.cfg = cfg
-	logger.Log.Info("設定載入成功")
+	log.Info("設定載入成功")
 
 	// 初始化資料庫
 	if err := db.InitDB(cfg); err != nil {
 		return nil, fmt.Errorf("資料庫初始化失敗: %v", err)
 	}
-	logger.Log.Info("資料庫初始化成功")
+	log.Info("資料庫初始化成功")
 
 	// 並行初始化 Repository
 	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		result.userRepo = repository.NewUserRepository(db.GetDB())
-		logger.Log.Info("UserRepository 初始化完成")
+		log.Info("UserRepository 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.symbolsRepo = repository.NewSymbolRepository(db.GetDB())
-		logger.Log.Info("SymbolRepository 初始化完成")
+		log.Info("SymbolRepository 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.userSubscriptionRepo = repository.NewUserSubscriptionRepository(db.GetDB())
-		logger.Log.Info("UserSubscriptionRepository 初始化完成")
+		log.Info("UserSubscriptionRepository 初始化完成")
 	}()
 
 	// 並行初始化外部 API 客戶端
@@ -213,25 +219,25 @@ func asyncInit() (*InitResult, error) {
 	go func() {
 		defer wg.Done()
 		result.fugleAPI = fugleInfra.NewFugleAPI(*cfg)
-		logger.Log.Info("FugleAPI 初始化完成")
+		log.Info("FugleAPI 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.finmindClient = finmindtrade.NewFinmindTradeAPI(*cfg)
-		logger.Log.Info("FinmindTradeAPI 初始化完成")
+		log.Info("FinmindTradeAPI 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.twseAPI = twseInfra.NewTwseAPI()
-		logger.Log.Info("TwseAPI 初始化完成")
+		log.Info("TwseAPI 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.cnyesAPI = cnyesInfra.NewCnyesAPI()
-		logger.Log.Info("CnyesAPI 初始化完成")
+		log.Info("CnyesAPI 初始化完成")
 	}()
 
 	// 初始化 ImgBB 客戶端（條件性）
@@ -240,9 +246,9 @@ func asyncInit() (*InitResult, error) {
 		defer wg.Done()
 		if cfg.IMGBB_API_KEY != "" {
 			result.imgbbClient = imgbb.NewImgBBClient(cfg.IMGBB_API_KEY)
-			logger.Log.Info("ImgBB 客戶端初始化成功")
+			log.Info("ImgBB 客戶端初始化成功")
 		} else {
-			logger.Log.Warn("IMGBB_API_KEY 未設定，圖片上傳功能將不可用")
+			log.Warn("IMGBB_API_KEY 未設定，圖片上傳功能將不可用")
 		}
 	}()
 
@@ -250,24 +256,24 @@ func asyncInit() (*InitResult, error) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		botClient, err := linebotInfra.NewBot(*cfg)
+		botClient, err := linebotInfra.NewBot(*cfg, log)
 		if err != nil {
 			result.err = fmt.Errorf("初始化 LINE Bot 失敗: %v", err)
 			return
 		}
 		result.lineBotClient = botClient
-		logger.Log.Info("LINE Bot 客戶端初始化完成")
+		log.Info("LINE Bot 客戶端初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
-		botClient, err := tgbotInfra.NewBot(*cfg)
+		botClient, err := tgbotInfra.NewBot(*cfg, log)
 		if err != nil {
 			result.err = fmt.Errorf("初始化 Telegram Bot 失敗: %v", err)
 			return
 		}
 		result.tgBotClient = botClient
-		logger.Log.Info("Telegram Bot 客戶端初始化完成")
+		log.Info("Telegram Bot 客戶端初始化完成")
 	}()
 
 	// 等待所有並行初始化完成
@@ -297,8 +303,9 @@ func asyncInit() (*InitResult, error) {
 		result.cnyesAPI,
 		result.fugleAPI,
 		result.symbolsRepo,
+		log,
 	)
 
-	logger.Log.Info("所有初始化完成")
+	log.Info("所有初始化完成")
 	return result, nil
 }

@@ -22,12 +22,14 @@ type TgServiceHandler interface {
 type tgServiceHandler struct {
 	commandHandler *TgCommandHandler
 	userService    user.UserService
+	logger         logger.Logger
 }
 
-func NewTgServiceHandler(commandHandler *TgCommandHandler, userService user.UserService) TgServiceHandler {
+func NewTgServiceHandler(commandHandler *TgCommandHandler, userService user.UserService, log logger.Logger) TgServiceHandler {
 	return &tgServiceHandler{
 		commandHandler: commandHandler,
 		userService:    userService,
+		logger:         log,
 	}
 }
 
@@ -90,13 +92,13 @@ func (s *tgServiceHandler) processCommand(message *tgbotapi.Message) error {
 	userID := message.Chat.ID
 	messageText := message.Text
 
-	logger.Log.Info("收到 Telegram 訊息",
+	s.logger.Info("收到 Telegram 訊息",
 		zap.Int64("user_id", userID),
 		zap.String("message", messageText))
 
 	_, err := s.userService.GetOrCreate(strconv.FormatInt(userID, 10), models.UserTypeTelegram)
 	if err != nil {
-		logger.Log.Error("建立或取得使用者失敗", zap.Error(err))
+		s.logger.Error("建立或取得使用者失敗", zap.Error(err))
 		return s.commandHandler.botClient.SendMessage(userID, "系統錯誤，請稍後再試")
 	}
 

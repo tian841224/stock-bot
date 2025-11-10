@@ -13,22 +13,23 @@ import (
 
 type LineBotClient struct {
 	Client *linebot.Client
+	logger logger.Logger
 }
 
 // NewBot 初始化 LINE Bot
-func NewBot(cfg config.Config) (*LineBotClient, error) {
+func NewBot(cfg config.Config, log logger.Logger) (*LineBotClient, error) {
 	client, err := linebot.New(cfg.CHANNEL_SECRET, cfg.CHANNEL_ACCESS_TOKEN)
 	if err != nil {
 		return nil, err
 	}
-	return &LineBotClient{Client: client}, nil
+	return &LineBotClient{Client: client, logger: log}, nil
 }
 
 // ReplyMessage 回覆文字訊息
 func (b *LineBotClient) ReplyMessage(replyToken, text string) error {
 	_, err := b.Client.ReplyMessage(replyToken, linebot.NewTextMessage(text)).Do()
 	if err != nil {
-		logger.Log.Error("發送訊息失敗", zap.Error(err))
+		b.logger.Error("發送訊息失敗", zap.Error(err))
 	}
 	return err
 }
@@ -45,7 +46,7 @@ func (b *LineBotClient) ReplyMessageWithButtons(replyToken, text string, buttons
 
 	_, err := b.Client.ReplyMessage(replyToken, linebot.NewTemplateMessage("按鈕", template)).Do()
 	if err != nil {
-		logger.Log.Error("發送帶有按鈕的訊息失敗", zap.Error(err))
+		b.logger.Error("發送帶有按鈕的訊息失敗", zap.Error(err))
 	}
 	return err
 }
@@ -55,7 +56,7 @@ func (b *LineBotClient) ReplyImage(replyToken, imageURL string) error {
 	imageMessage := linebot.NewImageMessage(imageURL, imageURL)
 	_, err := b.Client.ReplyMessage(replyToken, imageMessage).Do()
 	if err != nil {
-		logger.Log.Error("發送圖片訊息失敗", zap.Error(err))
+		b.logger.Error("發送圖片訊息失敗", zap.Error(err))
 	}
 	return err
 }
@@ -64,7 +65,7 @@ func (b *LineBotClient) ReplyImage(replyToken, imageURL string) error {
 func (b *LineBotClient) ReplyPhoto(replyToken string, data []byte, caption string, imgbbClient *imgbb.ImgBBClient) error {
 	// 如果沒有 ImgBB 客戶端，只發送文字訊息
 	if imgbbClient == nil {
-		logger.Log.Warn("ImgBB 客戶端未設定，只發送文字訊息")
+		b.logger.Warn("ImgBB 客戶端未設定，只發送文字訊息")
 		return b.ReplyMessage(replyToken, caption)
 	}
 
@@ -76,7 +77,7 @@ func (b *LineBotClient) ReplyPhoto(replyToken string, data []byte, caption strin
 	reader := bytes.NewReader(data)
 	resp, err := imgbbClient.UploadFromFile(reader, "chart.png", options)
 	if err != nil {
-		logger.Log.Error("上傳圖片到 ImgBB 失敗", zap.Error(err))
+		b.logger.Error("上傳圖片到 ImgBB 失敗", zap.Error(err))
 		// 如果上傳失敗，只發送文字訊息
 		return b.ReplyMessage(replyToken, caption)
 	}

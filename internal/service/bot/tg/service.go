@@ -37,15 +37,18 @@ type TgService interface {
 type tgService struct {
 	stockService            twstock.StockService
 	userSubscriptionService user_subscription.UserSubscriptionService
+	logger                  logger.Logger
 }
 
 func NewTgService(
 	stockService twstock.StockService,
 	userSubscriptionService user_subscription.UserSubscriptionService,
+	log logger.Logger,
 ) TgService {
 	return &tgService{
 		stockService:            stockService,
 		userSubscriptionService: userSubscriptionService,
+		logger:                  log,
 	}
 }
 
@@ -53,7 +56,7 @@ func NewTgService(
 func (s *tgService) GetDailyMarketInfo(count int) (string, error) {
 	marketInfo, err := s.stockService.GetDailyMarketInfo(count)
 	if err != nil {
-		logger.Log.Error("取得大盤資訊失敗", zap.Error(err))
+		s.logger.Error("取得大盤資訊失敗", zap.Error(err))
 		return "", fmt.Errorf("查無資料，請確認後再試")
 	}
 	return s.formatDailyMarketInfoMessage(marketInfo), nil
@@ -70,7 +73,7 @@ func (s *tgService) GetStockPerformance(symbol string) (string, error) {
 	// 取得績效
 	performanceData, err := s.stockService.GetStockPerformance(symbol)
 	if err != nil {
-		logger.Log.Error("取得股票績效失敗", zap.Error(err))
+		s.logger.Error("取得股票績效失敗", zap.Error(err))
 		return "", fmt.Errorf("取得績效資料失敗，請稍後再試")
 	}
 
@@ -91,14 +94,14 @@ func (s *tgService) GetStockPerformanceWithChart(symbol string, chartType string
 	// 取得績效和圖表
 	performanceChartData, err := s.stockService.GetStockPerformanceWithChart(symbol, chartType)
 	if err != nil {
-		logger.Log.Error("取得股票績效失敗", zap.Error(err))
+		s.logger.Error("取得股票績效失敗", zap.Error(err))
 		return nil, "", fmt.Errorf("取得績效資料失敗，請稍後再試")
 	}
 
 	// 取得績效
 	performanceData, err := s.stockService.GetStockPerformance(symbol)
 	if err != nil {
-		logger.Log.Error("取得股票績效失敗", zap.Error(err))
+		s.logger.Error("取得股票績效失敗", zap.Error(err))
 		return nil, "", fmt.Errorf("取得績效資料失敗，請稍後再試")
 	}
 
@@ -112,7 +115,7 @@ func (s *tgService) GetStockPerformanceWithChart(symbol string, chartType string
 func (s *tgService) GetTopVolumeItemsFormatted() (string, error) {
 	topItems, err := s.stockService.GetTopVolumeItems()
 	if err != nil {
-		logger.Log.Error("取得交易量前20名失敗", zap.Error(err))
+		s.logger.Error("取得交易量前20名失敗", zap.Error(err))
 		return "", fmt.Errorf("查無資料，請確認後再試")
 	}
 
@@ -152,7 +155,7 @@ func (s *tgService) GetStockPriceByDate(symbol, date string) (string, error) {
 	// 取得指定日期股價資訊
 	stockInfo, err := s.stockService.GetStockPrice(symbol, date)
 	if err != nil {
-		logger.Log.Error("取得股價資訊失敗", zap.Error(err))
+		s.logger.Error("取得股價資訊失敗", zap.Error(err))
 		return "", fmt.Errorf("查無資料，請確認後再試")
 	}
 
@@ -201,7 +204,7 @@ func (s *tgService) GetStockPriceByDate(symbol, date string) (string, error) {
 func (s *tgService) GetStockInfo(symbol string) (string, error) {
 	stockInfo, err := s.stockService.GetStockInfo(symbol)
 	if err != nil {
-		logger.Log.Error("取得股票詳細資訊失敗", zap.Error(err))
+		s.logger.Error("取得股票詳細資訊失敗", zap.Error(err))
 		return "", fmt.Errorf("查無資料，請確認後再試")
 	}
 
@@ -213,13 +216,13 @@ func (s *tgService) GetStockInfo(symbol string) (string, error) {
 func (s *tgService) GetStockRevenueWithChart(symbol string) ([]byte, string, error) {
 	revenue, err := s.stockService.GetStockRevenue(symbol)
 	if err != nil {
-		logger.Log.Error("取得股票財報失敗", zap.Error(err))
+		s.logger.Error("取得股票財報失敗", zap.Error(err))
 		return nil, "", fmt.Errorf("查無資料，請確認後再試")
 	}
 
 	chart, err := s.stockService.GetStockRevenueChart(symbol)
 	if err != nil {
-		logger.Log.Error("取得股票財報圖表失敗", zap.Error(err))
+		s.logger.Error("取得股票財報圖表失敗", zap.Error(err))
 		return nil, "", fmt.Errorf("查無資料，請確認後再試")
 	}
 
@@ -239,7 +242,7 @@ func (s *tgService) GetStockHistoricalCandlesChart(symbol string) ([]byte, strin
 
 	chart, stockName, err := s.stockService.GetStockHistoricalCandlesChart(dto)
 	if err != nil {
-		logger.Log.Error("取得股票歷史K線圖失敗", zap.Error(err))
+		s.logger.Error("取得股票歷史K線圖失敗", zap.Error(err))
 		return nil, "", fmt.Errorf("查無資料，請確認後再試")
 	}
 
@@ -258,7 +261,7 @@ func (s *tgService) GetTaiwanStockNews(symbol string) (*tgDto.StockNewsMessage, 
 	// 取得新聞
 	news, err := s.stockService.GetStockNews(symbol)
 	if err != nil {
-		logger.Log.Error("取得股票新聞失敗", zap.Error(err))
+		s.logger.Error("取得股票新聞失敗", zap.Error(err))
 		return nil, fmt.Errorf("取得新聞失敗，請稍後再試")
 	}
 
@@ -296,7 +299,7 @@ func (s *tgService) AddUserStockSubscription(userID uint, symbol string) (string
 	// 新增股票訂閱
 	success, err := s.userSubscriptionService.AddUserSubscriptionStock(userID, symbol)
 	if err != nil {
-		logger.Log.Error("新增股票訂閱失敗", zap.Error(err))
+		s.logger.Error("新增股票訂閱失敗", zap.Error(err))
 		return "", fmt.Errorf("訂閱失敗，請稍後再試")
 	}
 
@@ -312,7 +315,7 @@ func (s *tgService) DeleteUserStockSubscription(userID uint, symbol string) (str
 	// 刪除股票訂閱
 	success, err := s.userSubscriptionService.DeleteUserSubscriptionStock(userID, symbol)
 	if err != nil {
-		logger.Log.Error("刪除股票訂閱失敗", zap.Error(err))
+		s.logger.Error("刪除股票訂閱失敗", zap.Error(err))
 		return "", fmt.Errorf("取消訂閱失敗，請稍後再試")
 	}
 
@@ -328,14 +331,14 @@ func (s *tgService) GetUserSubscriptionList(userID uint) (string, error) {
 	// 取得使用者訂閱項目
 	subscriptions, err := s.userSubscriptionService.GetUserSubscriptionList(userID)
 	if err != nil {
-		logger.Log.Error("取得使用者訂閱項目失敗", zap.Error(err))
+		s.logger.Error("取得使用者訂閱項目失敗", zap.Error(err))
 		return "", fmt.Errorf("取得訂閱清單失敗")
 	}
 
 	// 取得使用者訂閱股票
 	subscriptionStocks, err := s.userSubscriptionService.GetUserSubscriptionStockList(userID)
 	if err != nil {
-		logger.Log.Error("取得使用者訂閱股票失敗", zap.Error(err))
+		s.logger.Error("取得使用者訂閱股票失敗", zap.Error(err))
 		return "", fmt.Errorf("取得訂閱清單失敗")
 	}
 
@@ -374,7 +377,7 @@ func (s *tgService) GetUserSubscriptionList(userID uint) (string, error) {
 // func (s *tgService) GetDailyMarketInfo(count int) (string, error) {
 // 	marketInfoList, err := s.stockService.GetDailyMarketInfo(count)
 // 	if err != nil {
-// 		logger.Log.Error("取得大盤資訊失敗", zap.Error(err))
+// 		s.logger.Error("取得大盤資訊失敗", zap.Error(err))
 // 		return "", fmt.Errorf("查無資料，請確認後再試")
 // 	}
 

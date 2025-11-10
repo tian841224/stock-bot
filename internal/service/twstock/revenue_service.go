@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	stockDto "github.com/tian841224/stock-bot/internal/service/twstock/dto"
-	"github.com/tian841224/stock-bot/pkg/logger"
 
 	"go.uber.org/zap"
 )
@@ -13,7 +12,7 @@ import (
 
 // GetStockRevenue 取得股票財報
 func (s *stockService) GetStockRevenue(stockID string) (*stockDto.RevenueDto, error) {
-	logger.Log.Info("取得股票財報", zap.String("stockID", stockID))
+	s.logger.Info("取得股票財報", zap.String("stockID", stockID))
 
 	// 取得近12個月財報
 	response, err := s.cnyesAPI.GetRevenue(stockID, 12)

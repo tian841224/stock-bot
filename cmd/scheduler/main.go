@@ -30,6 +30,7 @@ import (
 // 初始化結果結構
 type InitResult struct {
 	cfg                    *config.Config
+	log                    logger.Logger
 	symbolsRepo            repository.SymbolRepository
 	userRepo               repository.UserRepository
 	subscriptionRepo       repository.SubscriptionRepository
@@ -45,18 +46,25 @@ type InitResult struct {
 }
 
 func main() {
-	// 非同步初始化
-	initResult, err := asyncInit()
+	// 初始化日誌
+	log, err := logger.NewLogger()
 	if err != nil {
-		logger.Log.Panic("初始化失敗", zap.Error(err))
+		panic(fmt.Sprintf("初始化日誌失敗: %v", err))
+	}
+	defer log.Sync()
+
+	// 非同步初始化
+	initResult, err := asyncInit(log)
+	if err != nil {
+		log.Panic("初始化失敗", zap.Error(err))
 	}
 
 	// 建立使用者訂閱服務
 	userSubscriptionService := user_subscription.NewUserSubscriptionService(initResult.userSubscriptionRepo)
 	// 建立 Telegram Bot 服務層
-	tgSvc := tgService.NewTgService(initResult.stockService, userSubscriptionService)
+	tgSvc := tgService.NewTgService(initResult.stockService, userSubscriptionService, initResult.log)
 	// 建立排程通知服務
-	schedulerJobService := notification.NewSchedulerJobService(tgSvc, initResult.tgBotClient, initResult.userRepo, initResult.subscriptionRepo, initResult.subscriptionSymbolRepo)
+	schedulerJobService := notification.NewSchedulerJobService(tgSvc, initResult.tgBotClient, initResult.userRepo, initResult.subscriptionRepo, initResult.subscriptionSymbolRepo, initResult.log)
 
 	// 從設定檔載入時區（預設 Asia/Taipei）
 	timezone := initResult.cfg.SCHEDULER_TIMEZONE
@@ -65,10 +73,10 @@ func main() {
 	}
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
-		logger.Log.Error("載入時區失敗", zap.String("timezone", timezone), zap.Error(err))
+		initResult.log.Error("載入時區失敗", zap.String("timezone", timezone), zap.Error(err))
 		os.Exit(1)
 	}
-	logger.Log.Info("排程時區設定", zap.String("timezone", timezone))
+	initResult.log.Info("排程時區設定", zap.String("timezone", timezone))
 
 	// 建立 Cron
 	c := cron.New(
@@ -96,11 +104,11 @@ func main() {
 		}()
 	})
 	if err != nil {
-		logger.Log.Panic("註冊排程失敗", zap.Error(err))
+		initResult.log.Panic("註冊排程失敗", zap.Error(err))
 	}
 
 	c.Start()
-	logger.Log.Info("排程器啟動完成")
+	initResult.log.Info("排程器啟動完成")
 
 	// 等待終止訊號
 	quit := make(chan os.Signal, 1)
@@ -109,24 +117,20 @@ func main() {
 
 	dbErr := db.Close()
 	if dbErr != nil {
-		logger.Log.Error("資料庫關閉失敗", zap.Error(dbErr))
-		_ = logger.Log.Sync()
+		initResult.log.Error("資料庫關閉失敗", zap.Error(dbErr))
+		_ = initResult.log.Sync()
 		os.Exit(1)
 	}
 
 }
 
 // 非同步初始化函數
-func asyncInit() (*InitResult, error) {
+func asyncInit(log logger.Logger) (*InitResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	result := &InitResult{}
+	result := &InitResult{log: log}
 	var wg sync.WaitGroup
-
-	// 初始化日誌
-	logger.InitLogger()
-	defer logger.Log.Sync()
 
 	// 載入設定
 	cfg, err := config.LoadConfig()
@@ -134,44 +138,44 @@ func asyncInit() (*InitResult, error) {
 		return nil, fmt.Errorf("載入設定失敗: %v", err)
 	}
 	result.cfg = cfg
-	logger.Log.Info("設定載入成功")
+	log.Info("設定載入成功")
 
 	// 初始化資料庫
 	if err := db.InitDB(cfg); err != nil {
 		return nil, fmt.Errorf("資料庫初始化失敗: %v", err)
 	}
-	logger.Log.Info("資料庫初始化成功")
+	log.Info("資料庫初始化成功")
 
 	// 並行初始化 Repository
 	wg.Add(5)
 	go func() {
 		defer wg.Done()
 		result.symbolsRepo = repository.NewSymbolRepository(db.GetDB())
-		logger.Log.Info("SymbolRepository 初始化完成")
+		log.Info("SymbolRepository 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.userRepo = repository.NewUserRepository(db.GetDB())
-		logger.Log.Info("UserRepository 初始化完成")
+		log.Info("UserRepository 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.userSubscriptionRepo = repository.NewUserSubscriptionRepository(db.GetDB())
-		logger.Log.Info("UserSubscriptionRepository 初始化完成")
+		log.Info("UserSubscriptionRepository 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.subscriptionSymbolRepo = repository.NewSubscriptionSymbolRepository(db.GetDB())
-		logger.Log.Info("SubscriptionSymbolRepository 初始化完成")
+		log.Info("SubscriptionSymbolRepository 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.subscriptionRepo = repository.NewSubscriptionRepository(db.GetDB())
-		logger.Log.Info("SubscriptionRepository 初始化完成")
+		log.Info("SubscriptionRepository 初始化完成")
 	}()
 
 	// 並行初始化外部 API 客戶端
@@ -179,38 +183,38 @@ func asyncInit() (*InitResult, error) {
 	go func() {
 		defer wg.Done()
 		result.fugleAPI = fugleInfra.NewFugleAPI(*cfg)
-		logger.Log.Info("FugleAPI 初始化完成")
+		log.Info("FugleAPI 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.finmindClient = finmindtrade.NewFinmindTradeAPI(*cfg)
-		logger.Log.Info("FinmindTradeAPI 初始化完成")
+		log.Info("FinmindTradeAPI 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.twseAPI = twseInfra.NewTwseAPI()
-		logger.Log.Info("TwseAPI 初始化完成")
+		log.Info("TwseAPI 初始化完成")
 	}()
 
 	go func() {
 		defer wg.Done()
 		result.cnyesAPI = cnyesInfra.NewCnyesAPI()
-		logger.Log.Info("CnyesAPI 初始化完成")
+		log.Info("CnyesAPI 初始化完成")
 	}()
 
 	// 初始化 Telegram Bot 客戶端
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		botClient, err := tgbotInfra.NewBot(*cfg)
+		botClient, err := tgbotInfra.NewBot(*cfg, log)
 		if err != nil {
 			result.err = fmt.Errorf("初始化 Telegram Bot 失敗: %v", err)
 			return
 		}
 		result.tgBotClient = botClient
-		logger.Log.Info("Telegram Bot 客戶端初始化完成")
+		log.Info("Telegram Bot 客戶端初始化完成")
 	}()
 
 	// 等待所有並行初始化完成
@@ -239,8 +243,9 @@ func asyncInit() (*InitResult, error) {
 		result.cnyesAPI,
 		result.fugleAPI,
 		result.symbolsRepo,
+		log,
 	)
 
-	logger.Log.Info("所有初始化完成")
+	log.Info("所有初始化完成")
 	return result, nil
 }

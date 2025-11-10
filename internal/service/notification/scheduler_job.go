@@ -26,15 +26,17 @@ type schedulerJobService struct {
 	userRepo               repository.UserRepository
 	subscriptionRepo       repository.SubscriptionRepository
 	subscriptionSymbolRepo repository.SubscriptionSymbolRepository
+	logger                 logger.Logger
 }
 
-func NewSchedulerJobService(tgService tgbot.TgService, tgClient *tgbotInfra.TgBotClient, userRepo repository.UserRepository, subscriptionRepo repository.SubscriptionRepository, subscriptionSymbolRepo repository.SubscriptionSymbolRepository) SchedulerJobService {
+func NewSchedulerJobService(tgService tgbot.TgService, tgClient *tgbotInfra.TgBotClient, userRepo repository.UserRepository, subscriptionRepo repository.SubscriptionRepository, subscriptionSymbolRepo repository.SubscriptionSymbolRepository, log logger.Logger) SchedulerJobService {
 	return &schedulerJobService{
 		tgService:              tgService,
 		tgClient:               tgClient,
 		userRepo:               userRepo,
 		subscriptionRepo:       subscriptionRepo,
 		subscriptionSymbolRepo: subscriptionSymbolRepo,
+		logger:                 log,
 	}
 }
 
@@ -55,7 +57,7 @@ func (s *schedulerJobService) NotificationStockPrice() {
 	for symbol, userIDs := range symbolSubscriptions {
 		tgStockInfoMessage, err := s.tgService.GetStockPriceByDate(symbol, time.Now().Format("2006-01-02"))
 		if err != nil {
-			logger.Log.Error("取得股票資訊失敗", zap.String("symbol", symbol), zap.Error(err))
+			s.logger.Error("取得股票資訊失敗", zap.String("symbol", symbol), zap.Error(err))
 			continue
 		}
 
@@ -64,7 +66,7 @@ func (s *schedulerJobService) NotificationStockPrice() {
 		totalSubscriptions += len(userIDs)
 	}
 
-	logger.Log.Info("股票資訊通知完成", zap.Int("symbol數量", len(symbolSubscriptions)), zap.Int("訂閱數量", totalSubscriptions))
+	s.logger.Info("股票資訊通知完成", zap.Int("symbol數量", len(symbolSubscriptions)), zap.Int("訂閱數量", totalSubscriptions))
 }
 
 // NotificationStockNews 通知股票新聞
@@ -84,7 +86,7 @@ func (s *schedulerJobService) NotificationStockNews() {
 	for symbol, userIDs := range symbolSubscriptions {
 		tgStockNewsMessage, err := s.tgService.GetTaiwanStockNews(symbol)
 		if err != nil {
-			logger.Log.Error("取得股票新聞失敗", zap.String("symbol", symbol), zap.Error(err))
+			s.logger.Error("取得股票新聞失敗", zap.String("symbol", symbol), zap.Error(err))
 			continue
 		}
 
@@ -92,20 +94,20 @@ func (s *schedulerJobService) NotificationStockNews() {
 		for _, userID := range userIDs {
 			user, err := s.userRepo.GetByID(userID)
 			if err != nil {
-				logger.Log.Error("取得使用者失敗", zap.Uint("userID", userID), zap.Error(err))
+				s.logger.Error("取得使用者失敗", zap.Uint("userID", userID), zap.Error(err))
 				continue
 			}
 			if user == nil {
-				logger.Log.Error("使用者資料為空", zap.Uint("userID", userID))
+				s.logger.Error("使用者資料為空", zap.Uint("userID", userID))
 				continue
 			}
 			accountIDInt, err := strconv.ParseInt(user.AccountID, 10, 64)
 			if err != nil {
-				logger.Log.Error("轉換使用者 AccountID 失敗", zap.String("accountID", user.AccountID), zap.Error(err))
+				s.logger.Error("轉換使用者 AccountID 失敗", zap.String("accountID", user.AccountID), zap.Error(err))
 				continue
 			}
 			if err := s.tgClient.SendMessageWithKeyboard(accountIDInt, tgStockNewsMessage.Text, tgStockNewsMessage.InlineKeyboardMarkup); err != nil {
-				logger.Log.Error("發送股票新聞通知失敗", zap.String("symbol", symbol), zap.Uint("userID", userID), zap.Error(err))
+				s.logger.Error("發送股票新聞通知失敗", zap.String("symbol", symbol), zap.Uint("userID", userID), zap.Error(err))
 			}
 		}
 
@@ -114,7 +116,7 @@ func (s *schedulerJobService) NotificationStockNews() {
 		totalSubscriptions += len(userIDs)
 	}
 
-	logger.Log.Info("股票新聞通知完成", zap.Int("symbol數量", len(symbolSubscriptions)), zap.Int("訂閱數量", totalSubscriptions))
+	s.logger.Info("股票新聞通知完成", zap.Int("symbol數量", len(symbolSubscriptions)), zap.Int("訂閱數量", totalSubscriptions))
 }
 
 // NotificationDailyMarketInfo 通知大盤資訊
@@ -133,7 +135,7 @@ func (s *schedulerJobService) NotificationDailyMarketInfo() {
 	// 將大盤資訊發送給所有訂閱者
 	s.sendNotificationToSubscribers(tgDailyMarketInfoMessage, subscriptionsList)
 
-	logger.Log.Info("大盤資訊通知完成", zap.Int("訂閱數量", len(subscriptionsList)))
+	s.logger.Info("大盤資訊通知完成", zap.Int("訂閱數量", len(subscriptionsList)))
 }
 
 // NotificationTopVolumeItems 通知當日交易量前20名資訊
@@ -152,7 +154,7 @@ func (s *schedulerJobService) NotificationTopVolumeItems() {
 	// 將大盤資訊發送給所有訂閱者
 	s.sendNotificationToSubscribers(tgTopVolumeItemsMessage, subscriptionsList)
 
-	logger.Log.Info("交易量前20名資訊通知完成", zap.Int("訂閱數量", len(subscriptionsList)))
+	s.logger.Info("交易量前20名資訊通知完成", zap.Int("訂閱數量", len(subscriptionsList)))
 }
 
 // getSubscriptions 取得按 symbol 分組的訂閱者清單
@@ -160,12 +162,12 @@ func (s *schedulerJobService) getSubscriptions(featureID uint) ([]uint, error) {
 	// 取得所有股票訂閱清單
 	subscriptionList, err := s.subscriptionRepo.GetByFeatureID(featureID)
 	if err != nil {
-		logger.Log.Error("取得所有訂閱清單失敗", zap.Error(err))
+		s.logger.Error("取得所有訂閱清單失敗", zap.Error(err))
 		return nil, err
 	}
 
 	if len(subscriptionList) == 0 {
-		logger.Log.Info("沒有資料需要通知")
+		s.logger.Info("沒有資料需要通知")
 		return nil, nil
 	}
 
@@ -184,12 +186,12 @@ func (s *schedulerJobService) getSymbolSubscriptions() (map[string][]uint, error
 	// 取得所有股票訂閱清單
 	subscriptionSymbols, err := s.subscriptionSymbolRepo.GetAll("subscription_id")
 	if err != nil {
-		logger.Log.Error("取得所有股票訂閱清單失敗", zap.Error(err))
+		s.logger.Error("取得所有股票訂閱清單失敗", zap.Error(err))
 		return nil, err
 	}
 
 	if len(subscriptionSymbols) == 0 {
-		logger.Log.Info("沒有訂閱資料需要通知")
+		s.logger.Info("沒有訂閱資料需要通知")
 		return nil, nil
 	}
 
@@ -197,7 +199,7 @@ func (s *schedulerJobService) getSymbolSubscriptions() (map[string][]uint, error
 	symbolSubscriptions := make(map[string][]uint)
 	for _, subscriptionSymbol := range subscriptionSymbols {
 		if subscriptionSymbol.Symbol == nil || subscriptionSymbol.Subscription == nil {
-			logger.Log.Warn("訂閱資料缺少關聯資訊，跳過")
+			s.logger.Warn("訂閱資料缺少關聯資訊，跳過")
 			continue
 		}
 		symbol := subscriptionSymbol.Symbol.Symbol
@@ -214,20 +216,20 @@ func (s *schedulerJobService) sendNotificationToSubscribers(message string, user
 	for _, userID := range userIDs {
 		user, err := s.userRepo.GetByID(userID)
 		if err != nil {
-			logger.Log.Error("取得使用者失敗", zap.Uint("userID", userID), zap.Error(err))
+			s.logger.Error("取得使用者失敗", zap.Uint("userID", userID), zap.Error(err))
 			continue
 		}
 		if user == nil {
-			logger.Log.Error("使用者資料為空", zap.Uint("userID", userID))
+			s.logger.Error("使用者資料為空", zap.Uint("userID", userID))
 			continue
 		}
 		accountIDInt, err := strconv.ParseInt(user.AccountID, 10, 64)
 		if err != nil {
-			logger.Log.Error("轉換使用者 AccountID 失敗", zap.String("accountID", user.AccountID), zap.Error(err))
+			s.logger.Error("轉換使用者 AccountID 失敗", zap.String("accountID", user.AccountID), zap.Error(err))
 			continue
 		}
 		if err := s.tgClient.SendMessage(accountIDInt, message); err != nil {
-			logger.Log.Error("發送通知失敗", zap.Uint("userID", userID), zap.Error(err))
+			s.logger.Error("發送通知失敗", zap.Uint("userID", userID), zap.Error(err))
 		}
 	}
 }

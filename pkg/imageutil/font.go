@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tian841224/stock-bot/pkg/logger"
-
 	"github.com/flopp/go-findfont"
 	"github.com/golang/freetype/truetype"
-	"go.uber.org/zap"
 	"golang.org/x/image/font/gofont/goregular"
 )
 
@@ -80,7 +77,6 @@ func (fl *FontLoader) LoadChineseFont() (*truetype.Font, error) {
 	}
 
 	// 最後使用內建字型
-	logger.Log.Warn("無法載入繁體中文字型，使用內建字型")
 	return truetype.Parse(goregular.TTF)
 }
 
@@ -102,7 +98,6 @@ func (fl *FontLoader) loadFontFromPath(path string) (*truetype.Font, error) {
 		return nil, fmt.Errorf("解析字型檔案失敗: %v", err)
 	}
 
-	logger.Log.Info("成功載入字型", zap.String("path", path))
 	return font, nil
 }
 

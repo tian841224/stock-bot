@@ -25,6 +25,7 @@ type lineServiceHandler struct {
 	botClient      *linebotInfra.LineBotClient
 	commandHandler *LineCommandHandler
 	userService    user.UserService
+	logger         logger.Logger
 }
 
 // NewBotService 創建 service
@@ -32,11 +33,13 @@ func NewBotService(
 	botClient *linebotInfra.LineBotClient,
 	commandHandler *LineCommandHandler,
 	userService user.UserService,
+	log logger.Logger,
 ) LineServiceHandler {
 	return &lineServiceHandler{
 		botClient:      botClient,
 		commandHandler: commandHandler,
 		userService:    userService,
+		logger:         log,
 	}
 }
 
@@ -92,13 +95,13 @@ func (s *lineServiceHandler) HandleTextMessage(event *linebot.Event, message *li
 	userID := event.Source.UserID
 	messageText := message.Text
 
-	logger.Log.Info("收到 LINE 訊息",
+	s.logger.Info("收到 LINE 訊息",
 		zap.String("user_id", userID),
 		zap.String("message", messageText))
 
 	_, err := s.userService.GetOrCreate(userID, models.UserTypeLine)
 	if err != nil {
-		logger.Log.Error("建立或取得使用者失敗", zap.Error(err))
+		s.logger.Error("建立或取得使用者失敗", zap.Error(err))
 		return s.botClient.ReplyMessage(event.ReplyToken, "系統錯誤，請稍後再試")
 	}
 
