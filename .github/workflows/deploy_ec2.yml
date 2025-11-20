@@ -20,7 +20,7 @@ jobs:
       - name: 設定 Go 環境
         uses: actions/setup-go@v4
         with:
-          go-version: '1.24.1'
+          go-version: "1.24.1"
 
       - name: 快取 Go 模組
         uses: actions/cache@v3
@@ -48,6 +48,7 @@ jobs:
         run: |
           go build -o bot ./cmd/bot
           go build -o sync_stock_info ./cmd/sync_stock_info
+          go build -o scheduler ./cmd/scheduler
 
   Push:
     if: github.event_name == 'push'
@@ -90,6 +91,18 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-sync-go:buildcache,mode=max
 
+      - name: 建置並推送排程服務 Docker 映像檔
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.scheduler
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-scheduler-go:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-scheduler-go:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-scheduler-go:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/stock-bot-scheduler-go:buildcache,mode=max
+
   Deploy:
     if: github.event_name == 'push'
     needs: Push
@@ -103,7 +116,7 @@ jobs:
           mkdir -p artifacts
           cp docker-compose.yml artifacts/
           cp .env artifacts/.env || true
-          
+
       - name: 壓縮部署封包
         run: tar -czf deploy.tar.gz -C artifacts .
 
@@ -132,10 +145,10 @@ jobs:
 
             echo "建立專案目錄: ${PROJECT_DIR}"
             mkdir -p ${PROJECT_DIR}
-            
+
             echo "解壓縮部署檔案到專案目錄..."
             tar -xzf ~/deploy.tar.gz -C ${PROJECT_DIR}
-            
+
             echo "切換到專案目錄..."
             cd ${PROJECT_DIR}
 
@@ -155,19 +168,19 @@ jobs:
             CHANNEL_ACCESS_TOKEN='${{ secrets.CHANNEL_ACCESS_TOKEN }}'
             CHANNEL_SECRET='${{ secrets.CHANNEL_SECRET }}'
             LINE_BOT_WEBHOOK_PATH='${{ secrets.LINE_BOT_WEBHOOK_PATH }}'
-            
+
             # Telegram Bot 設定
             TELEGRAM_ADMIN_CHAT_ID='${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}'
             TELEGRAM_BOT_TOKEN='${{ secrets.TELEGRAM_BOT_TOKEN }}'
             TELEGRAM_BOT_WEBHOOK_DOMAIN='${{ secrets.TELEGRAM_BOT_WEBHOOK_DOMAIN }}'
             TELEGRAM_BOT_WEBHOOK_PATH='${{ secrets.TELEGRAM_BOT_WEBHOOK_PATH }}'
             TELEGRAM_BOT_SECRET_TOKEN='${{ secrets.TELEGRAM_BOT_SECRET_TOKEN }}'
-            
+
             # API Keys
             FINMIND_TOKEN='${{ secrets.FINMIND_TOKEN }}'
             FUGLE_API_KEY='${{ secrets.FUGLE_API_KEY }}'
             IMGBB_API_KEY='${{ secrets.IMGBB_API_KEY }}'
-            
+
             # 應用程式設定
             APP_PORT=8080
             TZ=Asia/Taipei
@@ -197,6 +210,6 @@ jobs:
 
             echo "部署完成!"
             sudo docker compose -p ${PROJECT_NAME//\//-} ps
-            
+
             echo "清理部署封包..."
             rm -f ~/deploy.tar.gz
